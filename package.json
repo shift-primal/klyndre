@@ -5,7 +5,7 @@
 	"packageManager": "pnpm@12.8.1",
 	"scripts": {
 		"dev": "pnpm db:up && pnpm db:push && pnpm -r --parallel dev",
-		"db:up": "docker compose -f docker-compose.dev.yml up -d --wait",
+		"db:up": "docker compose -f docker-compose.dev.yml up -d --wait --no-recreate",
 		"db:down": "docker compose -f docker-compose.dev.yml down",
 		"db:push": "pnpm --filter @klyndre/db push",
 		"bot:register": "pnpm --filter @klyndre/bot register",

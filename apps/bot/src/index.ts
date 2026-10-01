@@ -1,4 +1,5 @@
 import { env } from "node:process";
+import { listenForSettingsChanges } from "@klyndre/config/listen";
 import { db, pings } from "@klyndre/db";
 import { Client, Events, GatewayIntentBits } from "discord.js";
 
@@ -27,10 +28,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
 	}
 });
 
+const stopListening = await listenForSettingsChanges();
+
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
 	process.once(signal, async () => {
 		console.log(`Received ${signal}, shutting down`);
 		await client.destroy();
+		await stopListening();
 		process.exit(0);
 	});
 }

@@ -49,7 +49,8 @@ export async function setSettings<M extends ModuleName>(
 			set: { config: next, updatedAt: new Date() },
 		});
 
-	//delete cached copies
+	// keep this process's cache current; the notify drops other processes' copies
+	cacheSet(guildId, module, next);
 	await db.execute(
 		sql`select pg_notify(${CHANGE_CHANNEL}, ${JSON.stringify({ guildId, module })})`,
 	);
