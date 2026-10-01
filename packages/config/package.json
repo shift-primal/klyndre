@@ -1,0 +1,22 @@
+{
+	"name": "@klyndre/config",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./schemas": "./src/schemas.ts",
+		"./listen": "./src/listen.ts"
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"@klyndre/db": "workspace:*",
+		"drizzle-orm": "^0.45.3",
+		"pg": "^8.23.0",
+		"zod": "^4.6.5"
+	},
+	"devDependencies": {
+		"@types/pg": "^8.23.1"
+	}
+}

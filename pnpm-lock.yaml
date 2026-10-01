@@ -178,6 +178,9 @@ importers:
 
   apps/bot:
     dependencies:
+      '@klyndre/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@klyndre/db':
         specifier: workspace:*
         version: link:../../packages/db
@@ -225,6 +228,25 @@ importers:
       vite:
         specifier: ^8.3.1
         version: 8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)
+
+  packages/config:
+    dependencies:
+      '@klyndre/db':
+        specifier: workspace:*
+        version: link:../db
+      drizzle-orm:
+        specifier: ^0.45.3
+        version: 0.45.3(@types/pg@8.23.1)(pg@8.23.0)
+      pg:
+        specifier: ^8.23.0
+        version: 8.23.0
+      zod:
+        specifier: ^4.6.5
+        version: 4.6.5
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.23.1
+        version: 8.23.1
 
   packages/db:
     dependencies:
