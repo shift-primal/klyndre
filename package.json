@@ -1,0 +1,19 @@
+{
+	"name": "klyndre",
+	"private": true,
+	"type": "module",
+	"packageManager": "pnpm@12.8.1",
+	"scripts": {
+		"dev": "pnpm db:up && pnpm db:push && pnpm -r --parallel dev",
+		"db:up": "docker compose -f docker-compose.dev.yml up -d --wait",
+		"db:down": "docker compose -f docker-compose.dev.yml down",
+		"db:push": "pnpm --filter @klyndre/db push",
+		"bot:register": "pnpm --filter @klyndre/bot register",
+		"typecheck": "pnpm -r typecheck"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "^2.5.14",
+		"@types/node": "^26.6.3",
+		"typescript": "^7.0.2"
+	}
+}

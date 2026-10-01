@@ -1,0 +1,22 @@
+{
+	"name": "@klyndre/bot",
+	"private": true,
+	"type": "module",
+	"imports": {
+		"#/*": "./src/*"
+	},
+	"scripts": {
+		"dev": "tsx watch src/index.ts",
+		"register": "tsx src/scripts/register.ts",
+		"typecheck": "tsc --noEmit"
+	},
+	"devDependencies": {
+		"tsx": "^4.23.15"
+	},
+	"dependencies": {
+		"@klyndre/db": "workspace:*",
+		"discord.js": "^14.27.0",
+		"dotenv": "^18.0.4",
+		"zod": "^4.6.5"
+	}
+}

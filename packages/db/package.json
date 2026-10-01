@@ -1,0 +1,23 @@
+{
+	"name": "@klyndre/db",
+	"private": true,
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./env": "./src/env.ts"
+	},
+	"scripts": {
+		"push": "drizzle-kit push --force",
+		"studio": "drizzle-kit studio",
+		"typecheck": "tsc --noEmit"
+	},
+	"dependencies": {
+		"dotenv": "^18.0.4",
+		"drizzle-orm": "^0.45.3",
+		"pg": "^8.23.0"
+	},
+	"devDependencies": {
+		"@types/pg": "^8.23.1",
+		"drizzle-kit": "^0.31.11"
+	}
+}
