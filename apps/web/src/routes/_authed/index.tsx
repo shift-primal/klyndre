@@ -1,11 +1,5 @@
-import { createFileRoute, Outlet } from "@tanstack/react-router";
-import { Header } from "#/components/ui/header";
+import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute("/_authed/")({
-	component: () => (
-		<div className=" mx-auto flex max-w-5xl flex-col gap-6 p-6">
-			<Header />
-			<Outlet />
-		</div>
-	),
-});
+const Home = () => <p>home</p>;
+
+export const Route = createFileRoute("/_authed/")({ component: Home });

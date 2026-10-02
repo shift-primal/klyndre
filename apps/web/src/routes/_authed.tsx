@@ -1,4 +1,5 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { Header } from "#/components/layout/header";
 import { getSession } from "#/lib/auth.functions";
 
 export const Route = createFileRoute("/_authed")({
@@ -9,4 +10,10 @@ export const Route = createFileRoute("/_authed")({
 		}
 		return { session };
 	},
+	component: () => (
+		<div className="mx-auto flex max-w-5xl flex-col gap-6 p-6">
+			<Header />
+			<Outlet />
+		</div>
+	),
 });

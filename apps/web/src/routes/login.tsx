@@ -1,9 +1,7 @@
+import { useMutation } from "@tanstack/react-query";
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
-import { type SubmitEvent, useState } from "react";
-import { Button } from "#/components/shadcn/button";
-import { Input } from "#/components/shadcn/input";
-import { Label } from "#/components/shadcn/label";
-import { LoginForm } from "#/components/ui/login";
+import type { SubmitEvent } from "react";
+import { LoginForm } from "#/components/auth/login-form";
 import { getSession } from "#/lib/auth.functions";
 import { authClient } from "#/lib/auth-client";
 
@@ -15,30 +13,31 @@ const safeRedirect = (value: unknown) =>
 const Login = () => {
 	const { redirect: redirectTo } = Route.useSearch();
 	const router = useRouter();
-	const [error, setError] = useState<string>();
-	const [pending, setPending] = useState(false);
 
-	const onSubmit = async (event: SubmitEvent<HTMLFormElement>) => {
+	const signIn = useMutation({
+		mutationFn: async (credentials: { email: string; password: string }) => {
+			const { error } = await authClient.signIn.email(credentials);
+			if (error) throw new Error(error.message ?? "Sign in failed");
+		},
+		onSuccess: () => router.navigate({ href: redirectTo ?? "/" }),
+	});
+
+	const onSubmit = (event: SubmitEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		const form = new FormData(event.currentTarget);
-		setPending(true);
-		const { error } = await authClient.signIn.email({
+		signIn.mutate({
 			email: String(form.get("email")),
 			password: String(form.get("password")),
 		});
-		setPending(false);
-		if (error) {
-			setError(error.message ?? "Sign in failed");
-			return;
-		}
-		await router.navigate({ href: redirectTo ?? "/" });
 	};
-
-	const loginFormProps = { error, pending, onSubmit };
 
 	return (
 		<div className="flex min-h-screen items-center justify-center p-4">
-			<LoginForm {...loginFormProps} />
+			<LoginForm
+				error={signIn.error?.message}
+				pending={signIn.isPending}
+				onSubmit={onSubmit}
+			/>
 		</div>
 	);
 };

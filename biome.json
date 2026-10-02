@@ -15,7 +15,7 @@
 			"**/vite.config.ts",
 			"!**/src/routeTree.gen.ts",
 			"!**/src/components/auth",
-			"!**/src/components/shadcn",
+			"!**/src/components/ui",
 			"!**/src/paraglide/**/*"
 		]
 	},
