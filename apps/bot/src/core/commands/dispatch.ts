@@ -18,7 +18,6 @@ const parsePrefixed = (content: string, prefix: string) => {
 	return match?.[1] ? { name: match[1], args: match[2] ?? "" } : null;
 };
 
-/** Routes slash commands and prefixed messages to the registry's commands. */
 export function registerDispatch(client: Client, registry: CommandRegistry) {
 	client.on(Events.InteractionCreate, async (interaction) => {
 		if (!interaction.isChatInputCommand() || !interaction.inCachedGuild()) {

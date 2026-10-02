@@ -8,16 +8,27 @@
 	"scripts": {
 		"dev": "tsx watch src/index.ts",
 		"register": "tsx src/scripts/register.ts",
+		"set:secret": "tsx src/scripts/set-secret.ts",
 		"typecheck": "tsc --noEmit"
 	},
 	"devDependencies": {
 		"tsx": "^4.23.15"
 	},
 	"dependencies": {
+		"@discord-player/extractor": "^7.2.0",
+		"@discordjs/opus": "^0.10.0",
 		"@klyndre/config": "workspace:*",
 		"@klyndre/db": "workspace:*",
+		"@snazzah/davey": "^0.1.12",
+		"bgutils-js": "^4.0.3",
+		"discord-player": "^7.2.0",
+		"discord-player-youtubei": "^3.1.0",
 		"discord.js": "^14.27.0",
 		"dotenv": "^18.0.4",
+		"googlevideo": "^4.1.1",
+		"mediaplex": "^1.0.0",
+		"simple-ytdl-core": "^1.1.1",
+		"youtube-dl-exec": "^3.1.15",
 		"zod": "^4.6.5"
 	}
 }

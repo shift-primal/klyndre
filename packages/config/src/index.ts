@@ -56,3 +56,4 @@ export async function setSettings<M extends ModuleName>(
 	);
 	return next;
 }
+export * from "./secrets";
