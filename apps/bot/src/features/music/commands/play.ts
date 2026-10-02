@@ -40,7 +40,7 @@ export const play: Command = {
 				queue.tracks.toArray().findIndex((t) => t.id === track.id) + 1;
 
 			const trackLine = isPlayingNow
-				? `🔎 **Loaded:** ${formatTrack(track)}`
+				? `🔥 Time to play some bangers 🔥`
 				: `➕ **${playlist ? "Starts at" : "Added to queue"} #${position}:** ${formatTrack(track)}`;
 
 			await ctx.reply(

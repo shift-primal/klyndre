@@ -1,12 +1,11 @@
 import type { Feature } from "#/core/feature";
 import { withMusicChannel } from "#/features/music/access";
-import { play } from "#/features/music/commands/play";
-import { skip } from "#/features/music/commands/skip";
-import { stop } from "#/features/music/commands/stop";
+import { musicCommands } from "#/features/music/commands";
+
 import { setupPlayer } from "#/features/music/player";
 
 export const music: Feature = {
 	name: "music",
-	commands: [play, skip, stop].map(withMusicChannel),
+	commands: musicCommands.map(withMusicChannel),
 	register: setupPlayer,
 };
