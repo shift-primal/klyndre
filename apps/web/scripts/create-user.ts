@@ -5,13 +5,17 @@ config({ path: [".env.local", ".env"], quiet: true });
 
 const {
 	positionals: [email, password, name],
-} = parseArgs({ allowPositionals: true });
+	values: { admin },
+} = parseArgs({
+	allowPositionals: true,
+	options: { admin: { type: "boolean" } },
+});
 if (!email || !password) {
-	console.error("Usage: pnpm create:user <email> <password> [name]");
+	console.error("Usage: pnpm create:user <email> <password> [name] [--admin]");
 	process.exit(1);
 }
 
-const { auth } = await import("#/lib/auth");
+const { auth } = await import("#/features/auth/server/auth");
 const { db } = await import("@klyndre/db");
 const ctx = await auth.$context;
 
@@ -30,6 +34,7 @@ try {
 			email,
 			name: name ?? email.split("@")[0] ?? email,
 			emailVerified: true,
+			role: admin ? "admin" : "viewer",
 		},
 		{ method: "admin" },
 	);

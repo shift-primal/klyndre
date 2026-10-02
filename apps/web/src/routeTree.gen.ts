@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthedRouteImport } from './routes/_authed'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
+import { Route as AuthedGuildsGuildIdRouteRouteImport } from './routes/_authed/guilds/$guildId/route'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as AuthedGuildsGuildIdSettingsIndexRouteImport } from './routes/_authed/guilds/$guildId/settings/index'
 
 const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
@@ -28,35 +30,70 @@ const AuthedIndexRoute = AuthedIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthedRoute,
 } as any)
+const AuthedGuildsGuildIdRouteRoute =
+  AuthedGuildsGuildIdRouteRouteImport.update({
+    id: '/guilds/$guildId',
+    path: '/guilds/$guildId',
+    getParentRoute: () => AuthedRoute,
+  } as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthedGuildsGuildIdSettingsIndexRoute =
+  AuthedGuildsGuildIdSettingsIndexRouteImport.update({
+    id: '/settings/',
+    path: '/settings/',
+    getParentRoute: () => AuthedGuildsGuildIdRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedIndexRoute
   '/login': typeof LoginRoute
+  '/guilds/$guildId': typeof AuthedGuildsGuildIdRouteRouteWithChildren
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/guilds/$guildId/settings/': typeof AuthedGuildsGuildIdSettingsIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/': typeof AuthedIndexRoute
+  '/guilds/$guildId': typeof AuthedGuildsGuildIdRouteRouteWithChildren
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/guilds/$guildId/settings': typeof AuthedGuildsGuildIdSettingsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authed': typeof AuthedRouteWithChildren
   '/login': typeof LoginRoute
   '/_authed/': typeof AuthedIndexRoute
+  '/_authed/guilds/$guildId': typeof AuthedGuildsGuildIdRouteRouteWithChildren
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/_authed/guilds/$guildId/settings/': typeof AuthedGuildsGuildIdSettingsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/login' | '/api/auth/$'
+  fullPaths:
+    | '/'
+    | '/login'
+    | '/guilds/$guildId'
+    | '/api/auth/$'
+    | '/guilds/$guildId/settings/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/login' | '/' | '/api/auth/$'
-  id: '__root__' | '/_authed' | '/login' | '/_authed/' | '/api/auth/$'
+  to:
+    | '/login'
+    | '/'
+    | '/guilds/$guildId'
+    | '/api/auth/$'
+    | '/guilds/$guildId/settings'
+  id:
+    | '__root__'
+    | '/_authed'
+    | '/login'
+    | '/_authed/'
+    | '/_authed/guilds/$guildId'
+    | '/api/auth/$'
+    | '/_authed/guilds/$guildId/settings/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -88,6 +125,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedIndexRouteImport
       parentRoute: typeof AuthedRoute
     }
+    '/_authed/guilds/$guildId': {
+      id: '/_authed/guilds/$guildId'
+      path: '/guilds/$guildId'
+      fullPath: '/guilds/$guildId'
+      preLoaderRoute: typeof AuthedGuildsGuildIdRouteRouteImport
+      parentRoute: typeof AuthedRoute
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -95,15 +139,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authed/guilds/$guildId/settings/': {
+      id: '/_authed/guilds/$guildId/settings/'
+      path: '/settings'
+      fullPath: '/guilds/$guildId/settings/'
+      preLoaderRoute: typeof AuthedGuildsGuildIdSettingsIndexRouteImport
+      parentRoute: typeof AuthedGuildsGuildIdRouteRoute
+    }
   }
 }
 
+interface AuthedGuildsGuildIdRouteRouteChildren {
+  AuthedGuildsGuildIdSettingsIndexRoute: typeof AuthedGuildsGuildIdSettingsIndexRoute
+}
+
+const AuthedGuildsGuildIdRouteRouteChildren: AuthedGuildsGuildIdRouteRouteChildren =
+  {
+    AuthedGuildsGuildIdSettingsIndexRoute:
+      AuthedGuildsGuildIdSettingsIndexRoute,
+  }
+
+const AuthedGuildsGuildIdRouteRouteWithChildren =
+  AuthedGuildsGuildIdRouteRoute._addFileChildren(
+    AuthedGuildsGuildIdRouteRouteChildren,
+  )
+
 interface AuthedRouteChildren {
   AuthedIndexRoute: typeof AuthedIndexRoute
+  AuthedGuildsGuildIdRouteRoute: typeof AuthedGuildsGuildIdRouteRouteWithChildren
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedIndexRoute: AuthedIndexRoute,
+  AuthedGuildsGuildIdRouteRoute: AuthedGuildsGuildIdRouteRouteWithChildren,
 }
 
 const AuthedRouteWithChildren =

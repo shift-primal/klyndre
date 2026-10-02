@@ -9,5 +9,10 @@ export const auth = betterAuth({
 		enabled: true,
 		disableSignUp: true,
 	},
+	user: {
+		additionalFields: {
+			role: { type: "string", defaultValue: "viewer", input: false },
+		},
+	},
 	plugins: [tanstackStartCookies()],
 });

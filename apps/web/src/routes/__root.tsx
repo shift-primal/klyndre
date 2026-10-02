@@ -6,6 +6,7 @@ import {
 	Scripts,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { Toaster } from "#/components/ui/toast";
 import appCss from "../globals.css?url";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 
@@ -45,6 +46,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 			</head>
 			<body>
 				<main className="min-h-screen">{children}</main>
+				<Toaster />
 				<TanStackDevtools
 					config={{
 						position: "bottom-right",
