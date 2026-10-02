@@ -8,6 +8,7 @@ import {
 } from "discord-player";
 import { createRetryTracker } from "#/features/music/retry";
 import type { QueueMetadata } from "#/features/music/types";
+import { controlButtons } from "#/features/music/ui/controls";
 import { formatNowPlaying, formatTrack } from "#/features/music/ui/format";
 
 const nowPlaying = new Map<string, Message>();
@@ -60,6 +61,7 @@ export function registerAnnouncements(player: Player) {
 		try {
 			const message = await channel.send({
 				content: formatNowPlaying(track),
+				components: [controlButtons()],
 				allowedMentions: { parse: [] },
 			});
 			nowPlaying.set(queue.guild.id, message);

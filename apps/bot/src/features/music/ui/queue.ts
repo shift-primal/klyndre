@@ -1,3 +1,4 @@
+import { getSettings } from "@klyndre/config";
 import {
 	ActionRowBuilder,
 	ButtonBuilder,
@@ -7,14 +8,19 @@ import {
 import { type GuildQueue, useQueue } from "discord-player";
 import { formatNowPlaying, formatTrack } from "#/features/music/ui/format";
 
-const QUEUE_PAGE_SIZE = 10;
 const QUEUE_ID_PREFIX = "q";
 
-export function renderQueue(queue: GuildQueue, requestedPage = 1) {
+export const isQueueButton = (customId: string) => /^q\d+:/.test(customId);
+
+export function renderQueue(
+	queue: GuildQueue,
+	pageSize: number,
+	requestedPage = 1,
+) {
 	const upcoming = queue.tracks.toArray();
-	const pages = Math.max(1, Math.ceil(upcoming.length / QUEUE_PAGE_SIZE));
+	const pages = Math.max(1, Math.ceil(upcoming.length / pageSize));
 	const page = Math.min(Math.max(requestedPage, 1), pages);
-	const start = (page - 1) * QUEUE_PAGE_SIZE;
+	const start = (page - 1) * pageSize;
 
 	const lines = [];
 	if (queue.currentTrack) lines.push(formatNowPlaying(queue.currentTrack), "");
@@ -24,7 +30,7 @@ export function renderQueue(queue: GuildQueue, requestedPage = 1) {
 	} else {
 		lines.push("**Up next:**");
 		for (const [i, track] of upcoming
-			.slice(start, start + QUEUE_PAGE_SIZE)
+			.slice(start, start + pageSize)
 			.entries()) {
 			lines.push(`${start + i + 1}. ${formatTrack(track)}`);
 		}
@@ -75,5 +81,6 @@ export async function handleQueuePage(interaction: ButtonInteraction) {
 		return;
 	}
 
-	await interaction.update(renderQueue(queue, page));
+	const { queuePageSize } = await getSettings(interaction.guildId, "music");
+	await interaction.update(renderQueue(queue, queuePageSize, page));
 }

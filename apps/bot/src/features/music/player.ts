@@ -10,6 +10,7 @@ import {
 	loadCookies,
 	youtubeOptions,
 } from "#/features/music/extractors/youtube";
+import { registerMusicButtons } from "#/features/music/ui/interactions";
 
 let cookies = "";
 
@@ -24,6 +25,7 @@ export async function setupPlayer(client: Client) {
 	);
 
 	registerAnnouncements(player);
+	registerMusicButtons(client);
 
 	if (env.DEBUG_PLAYER) {
 		player.events.on("debug", (_queue, message) =>

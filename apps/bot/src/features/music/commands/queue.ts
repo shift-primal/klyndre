@@ -1,3 +1,4 @@
+import { getSettings } from "@klyndre/config";
 import type { Command } from "#/core/commands/types";
 import { refuse, requireQueue } from "#/features/music/access";
 import { renderQueue } from "#/features/music/ui/queue";
@@ -16,7 +17,12 @@ export const queue: Command = {
 			return refuse(ctx, "The page must be a number.");
 		}
 
-		const { content, components } = renderQueue(activeQueue, page);
+		const { queuePageSize } = await getSettings(ctx.guild.id, "music");
+		const { content, components } = renderQueue(
+			activeQueue,
+			queuePageSize,
+			page,
+		);
 		await ctx.reply(content, { components });
 	},
 };
