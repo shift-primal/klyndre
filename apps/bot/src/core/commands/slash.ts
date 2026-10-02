@@ -1,5 +1,5 @@
 import { InteractionContextType, SlashCommandBuilder } from "discord.js";
-import type { Command } from "#/types";
+import type { Command } from "#/core/commands/types";
 
 export function toSlashJSON(command: Command) {
 	const builder = new SlashCommandBuilder()

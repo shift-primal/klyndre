@@ -1,11 +1,12 @@
 import { type APIGuild, REST, Routes } from "discord.js";
-import { commands } from "#/commands";
+import { createRegistry } from "#/core/commands/registry";
+import { toSlashJSON } from "#/core/commands/slash";
 import { deployEnv } from "#/env";
-import { toSlashJSON } from "#/lib/utils/slash";
+import { features } from "#/features";
 
 const { DISCORD_TOKEN, DISCORD_CLIENT_ID } = deployEnv();
 
-const body = commands.map(toSlashJSON);
+const body = createRegistry(features).commands.map(toSlashJSON);
 
 const rest = new REST().setToken(DISCORD_TOKEN);
 await rest.put(Routes.applicationCommands(DISCORD_CLIENT_ID), { body });

@@ -1,4 +1,4 @@
-import type { Command } from "#/types";
+import type { Command } from "#/core/commands/types";
 
 export const ping: Command = {
 	name: "ping",
