@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Item, ItemContent, ItemMedia, ItemTitle } from "#/components/ui/item";
-import { iconUrl } from "#/features/guilds/lib/guild-util";
+import { iconUrl } from "#/features/guilds/lib/guild-utils";
 import type { GuildSummary } from "#/features/guilds/lib/types";
 
 export const Guild = (guild: GuildSummary) => {
