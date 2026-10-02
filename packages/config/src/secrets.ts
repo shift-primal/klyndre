@@ -5,7 +5,6 @@ export const SECRETS_CHANNEL = "secrets_changed";
 
 export type SecretKey = "youtube-cookies";
 
-/** The stored value, or an empty string when the secret hasn't been set. */
 export async function getSecret(key: SecretKey) {
 	const [row] = await db
 		.select({ value: appSecrets.value })
@@ -14,7 +13,6 @@ export async function getSecret(key: SecretKey) {
 	return row?.value ?? "";
 }
 
-/** Safe to show in a UI: says whether a secret exists, never what it is. */
 export async function getSecretInfo(key: SecretKey) {
 	const [row] = await db
 		.select({ updatedAt: appSecrets.updatedAt })

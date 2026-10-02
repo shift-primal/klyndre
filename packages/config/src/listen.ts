@@ -6,7 +6,6 @@ import { SECRETS_CHANNEL, type SecretKey } from "./secrets";
 
 const secretHandlers = new Map<SecretKey, Set<() => void | Promise<void>>>();
 
-/** Runs `handler` whenever the secret is changed from anywhere (the web app, a script). */
 export function onSecretChange(
 	key: SecretKey,
 	handler: () => void | Promise<void>,
