@@ -34,7 +34,6 @@ export async function setupPlayer(client: Client) {
 		player.on("debug", (message) => console.log("[player dbg]", message));
 	}
 
-	// cookies are edited at runtime, so re-register the extractor when they change
 	onSecretChange("youtube-cookies", reloadYoutubeCookies);
 }
 

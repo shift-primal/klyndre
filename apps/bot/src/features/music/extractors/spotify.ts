@@ -1,5 +1,9 @@
 import { SpotifyExtractor } from "@discord-player/extractor";
-import type { SearchQueryType } from "discord-player";
+import {
+	type ExtractorSearchContext,
+	QueryType,
+	type SearchQueryType,
+} from "discord-player";
 import { env } from "#/env";
 
 const SPOTIFY_LINK = /^(https?:\/\/open\.spotify\.com\/|spotify:)/;
@@ -7,7 +11,34 @@ const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token";
 
 export class CustomSpotifyExtractor extends SpotifyExtractor {
 	override async validate(query: string, type?: SearchQueryType | null) {
-		return SPOTIFY_LINK.test(query) && (await super.validate(query, type));
+		if (SPOTIFY_LINK.test(query)) {
+			return await super.validate(query, type);
+		}
+
+		if (/^https?:\/\//.test(query)) {
+			return false;
+		}
+
+		const isAuto = type === QueryType.AUTO || (type as string) === "autoSearch";
+		const isSpotifySearch =
+			type === QueryType.SPOTIFY_SEARCH || type === QueryType.SPOTIFY_SONG;
+
+		if (isAuto || isSpotifySearch) {
+			return true;
+		}
+
+		return false;
+	}
+
+	override async handle(query: string, context: ExtractorSearchContext) {
+		if (SPOTIFY_LINK.test(query)) {
+			return await super.handle(query, context);
+		}
+
+		return await super.handle(query, {
+			...context,
+			type: QueryType.SPOTIFY_SEARCH,
+		});
 	}
 
 	override async activate() {
