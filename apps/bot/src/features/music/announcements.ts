@@ -73,11 +73,8 @@ export function registerAnnouncements(player: Player) {
 			title: track.title,
 			author: track.author,
 			url: track.url,
-			// The metadata source (e.g. "spotify")
 			metadataSource: track.source,
-			// The extractor class that handled the initial metadata/query
 			foundByExtractor: track.extractor?.identifier ?? "Unknown",
-			// The actual audio stream source (e.g. "youtube" if bridged via YouTube)
 			rawSource: track.raw?.source ?? track.source,
 		});
 	});

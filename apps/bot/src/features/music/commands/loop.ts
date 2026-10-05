@@ -28,7 +28,6 @@ export const loop: Command = {
 
 		const next =
 			choice ??
-			// no argument: cycle off → track → queue → off
 			(queue.repeatMode === QueueRepeatMode.OFF
 				? MODES.track
 				: queue.repeatMode === QueueRepeatMode.TRACK

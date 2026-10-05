@@ -42,7 +42,7 @@ apps/bot/src/
 
 ### General
 
-- [ ] /help
+- [/] /help (core done, should add pages like -help music, -help chat etc)
 
 ### Chat
 

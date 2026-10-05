@@ -15,11 +15,13 @@
 		"tsx": "^4.23.15"
 	},
 	"dependencies": {
+		"@ai-sdk/xai": "^5.0.14",
 		"@discord-player/extractor": "^7.2.0",
 		"@discordjs/opus": "^0.10.0",
 		"@klyndre/config": "workspace:*",
 		"@klyndre/db": "workspace:*",
 		"@snazzah/davey": "^0.1.12",
+		"ai": "^7.0.127",
 		"bgutils-js": "^4.0.3",
 		"discord-player": "^7.2.0",
 		"discord-player-youtubei": "^3.1.0",
