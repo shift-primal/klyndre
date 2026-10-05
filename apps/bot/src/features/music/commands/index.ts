@@ -3,11 +3,13 @@ import { playNext } from "#/features/music/commands/play-next";
 import { playNow } from "#/features/music/commands/play-now";
 import { skipTo } from "#/features/music/commands/skip-to";
 import { loop } from "./loop";
+import { move } from "./move";
 import { nowplaying } from "./nowplaying";
 import { pause } from "./pause";
 import { play } from "./play";
 import { queue } from "./queue";
 import { remove } from "./remove";
+import { restore } from "./restore";
 import { resume } from "./resume";
 import { shuffle } from "./shuffle";
 import { skip } from "./skip";
@@ -15,6 +17,7 @@ import { stop } from "./stop";
 
 export const musicCommands: Command[] = [
 	loop,
+	move,
 	nowplaying,
 	pause,
 	play,
@@ -22,6 +25,7 @@ export const musicCommands: Command[] = [
 	playNow,
 	queue,
 	remove,
+	restore,
 	resume,
 	shuffle,
 	skip,

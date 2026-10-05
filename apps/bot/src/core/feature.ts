@@ -3,6 +3,7 @@ import type { Command } from "#/core/commands/types";
 
 export interface Feature {
 	name: string;
+	description?: string;
 	commands?: Command[];
 	register?(client: Client): void | Promise<void>;
 }

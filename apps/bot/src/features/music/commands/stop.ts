@@ -10,6 +10,8 @@ export const stop: Command = {
 		if (!queue) return;
 
 		queue.delete();
-		await ctx.reply("Stopped the music and cleared the queue.");
+		await ctx.reply(
+			"Stopped the music and cleared the queue. Use `/restore` to bring it back.",
+		);
 	},
 };

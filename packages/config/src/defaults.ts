@@ -9,6 +9,10 @@ export const defaults = {
 		),
 		historyLimit: meta(25, "Chat messages read before each reply"),
 		maxImages: meta(4, "Images sent to the model per reply"),
+		imageMaxAgeMs: meta(
+			15 * 60_000,
+			"Images older than this (before the message being answered) are left out",
+		),
 		maxReplyTokens: meta(500, "Longest reply the model may write, in tokens"),
 		turnWaitLimitMs: meta(
 			30_000,
@@ -70,6 +74,14 @@ At most 30 words per person. Keep old notes that still hold. Only include people
 			"Instructions for the model that updates the notes on people",
 			"prompt",
 		),
+		fallbackReply: meta(
+			"brain lagged, try again",
+			"Sent when the model errors or writes nothing (empty to stay quiet)",
+		),
+		contentFilterReply: meta(
+			"Nah, can't help with that one.",
+			"Sent when the model refuses (empty to stay quiet)",
+		),
 	},
 	commands: {
 		prefix: meta("-", "Prefix for text commands"),
@@ -88,6 +100,10 @@ At most 30 words per person. Keep old notes that still hold. Only include people
 		leaveOnEnd: meta(true, "Leave the voice channel when the queue ends"),
 		leaveOnEndMs: meta(5 * 60_000, "How long it stays after the queue ends"),
 		leaveOnStop: meta(true, "Leave the voice channel right away on stop"),
+		restoreWindowMs: meta(
+			30 * 60_000,
+			"How long a stopped queue can be brought back with restore",
+		),
 		maxTrackRetries: meta(1, "Retries for a track that fails to play"),
 		queuePageSize: meta(10, "Tracks per page in the queue view"),
 	},

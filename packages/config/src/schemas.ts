@@ -29,6 +29,7 @@ export const chatSettings = z.object({
 	randomReplyChance: field(chance, d.chat.randomReplyChance),
 	historyLimit: field(z.int().min(1).max(100), d.chat.historyLimit),
 	maxImages: field(count, d.chat.maxImages),
+	imageMaxAgeMs: field(count, d.chat.imageMaxAgeMs),
 	maxReplyTokens: field(z.int().min(16).max(4000), d.chat.maxReplyTokens),
 	turnWaitLimitMs: field(count, d.chat.turnWaitLimitMs),
 	timeZone: field(timeZone, d.chat.timeZone),
@@ -50,6 +51,8 @@ export const personalitySettings = z.object({
 		z.string().min(1),
 		d.personality.profileInstructions,
 	),
+	fallbackReply: field(z.string(), d.personality.fallbackReply),
+	contentFilterReply: field(z.string(), d.personality.contentFilterReply),
 });
 
 export const commandsSettings = z.object({
@@ -63,6 +66,7 @@ export const musicSettings = z.object({
 	leaveOnEnd: field(z.boolean(), d.music.leaveOnEnd),
 	leaveOnEndMs: field(count, d.music.leaveOnEndMs),
 	leaveOnStop: field(z.boolean(), d.music.leaveOnStop),
+	restoreWindowMs: field(count, d.music.restoreWindowMs),
 	maxTrackRetries: field(count, d.music.maxTrackRetries),
 	queuePageSize: field(z.int().min(1).max(25), d.music.queuePageSize),
 });

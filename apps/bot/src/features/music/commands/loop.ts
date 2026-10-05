@@ -15,7 +15,7 @@ export const loop: Command = {
 	name: "loop",
 	aliases: ["repeat"],
 	description: "Loop the current track or the whole queue",
-	argument: { name: "mode", description: "off, track or queue" },
+	arguments: [{ name: "mode", description: "off, track or queue" }],
 	async run(ctx) {
 		const queue = await requireQueue(ctx);
 		if (!queue) return;

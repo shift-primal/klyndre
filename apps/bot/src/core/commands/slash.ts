@@ -7,8 +7,7 @@ export function toSlashJSON(command: Command) {
 		.setDescription(command.description)
 		.setContexts(InteractionContextType.Guild);
 
-	const arg = command.argument;
-	if (arg) {
+	for (const arg of command.arguments ?? []) {
 		builder.addStringOption((option) =>
 			option
 				.setName(arg.name)

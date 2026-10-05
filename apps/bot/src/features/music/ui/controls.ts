@@ -81,7 +81,8 @@ export async function handleControl(interaction: ButtonInteraction) {
 		}
 		case "stop":
 			queue.delete();
-			reply = "⏹️ Stopped the music and cleared the queue.";
+			reply =
+				"⏹️ Stopped the music and cleared the queue. Use `/restore` to bring it back.";
 			break;
 		default:
 			return;

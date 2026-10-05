@@ -55,10 +55,11 @@ const belongsInChat = (
 export const buildHistory = async (
 	message: Message<true>,
 ): Promise<{ messages: ModelMessage[]; people: People }> => {
-	const [{ historyLimit, maxImages }, { prefix }] = await Promise.all([
-		getSettings(message.guildId, "chat"),
-		getSettings(message.guildId, "commands"),
-	]);
+	const [{ historyLimit, maxImages, imageMaxAgeMs }, { prefix }] =
+		await Promise.all([
+			getSettings(message.guildId, "chat"),
+			getSettings(message.guildId, "commands"),
+		]);
 
 	const fetched = await message.channel.messages.fetch({ limit: historyLimit });
 	const botId = message.client.user.id;
@@ -73,8 +74,13 @@ export const buildHistory = async (
 		if (!belongsInChat(msg, fetched, botId, prefix)) continue;
 		if (!msg.author.bot) people.set(msg.author.id, nameOf(msg));
 
+		// old discord attachment urls expire, and old images rarely matter anyway
+		const recent =
+			message.createdTimestamp - msg.createdTimestamp <= imageMaxAgeMs;
 		const images =
-			msg.author.id === botId ? [] : imagesOf(msg).slice(0, imageBudget);
+			msg.author.id === botId || !recent
+				? []
+				: imagesOf(msg).slice(0, imageBudget);
 		imageBudget -= images.length;
 
 		const modelMessage = toModelMessage(msg, botId, images);

@@ -6,6 +6,7 @@ import { setupPlayer } from "#/features/music/player";
 
 export const music: Feature = {
 	name: "music",
+	description: "Play music in a voice channel",
 	commands: musicCommands.map(withMusicChannel),
 	register: setupPlayer,
 };

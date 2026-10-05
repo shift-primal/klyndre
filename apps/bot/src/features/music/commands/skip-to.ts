@@ -11,11 +11,13 @@ export const skipTo: Command = {
 	name: "skipto",
 	aliases: ["st", "goto"],
 	description: "Skip to a track in the queue, by its number or name",
-	argument: {
-		name: "track",
-		description: "Queue number or part of the title",
-		required: true,
-	},
+	arguments: [
+		{
+			name: "track",
+			description: "Queue number or part of the title",
+			required: true,
+		},
+	],
 	async run(ctx) {
 		const queue = await requireQueue(ctx);
 		if (!queue) return;

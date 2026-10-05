@@ -1,10 +1,13 @@
 import { getSettings } from "@klyndre/config";
 import { type Client, Events, MessageFlags } from "discord.js";
+import { refusal } from "#/core/commands/guards";
 import type { CommandRegistry } from "#/core/commands/registry";
 import type { Command, CommandContext } from "#/core/commands/types";
 
 async function run(command: Command, ctx: CommandContext) {
 	try {
+		const refused = await refusal(command, ctx);
+		if (refused) return await ctx.reply(refused, { ephemeral: true });
 		await command.run(ctx);
 	} catch (error) {
 		console.error(`[command ${command.name}]`, error);
@@ -30,9 +33,10 @@ export function registerDispatch(client: Client, registry: CommandRegistry) {
 			guild: interaction.guild,
 			member: interaction.member,
 			channel: interaction.channel,
-			args: command.argument
-				? (interaction.options.getString(command.argument.name) ?? "")
-				: "",
+			args: (command.arguments ?? [])
+				.map((arg) => interaction.options.getString(arg.name) ?? "")
+				.filter(Boolean)
+				.join(" "),
 			defer: async () => {
 				await interaction.deferReply();
 			},

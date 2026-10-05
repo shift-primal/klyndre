@@ -1,53 +1,33 @@
 # TODO
 
-folder structure:
-
-```
-apps/bot/src/
-  index.ts              entry: build client, register features, login, shutdown
-  env.ts                secrets only (DISCORD_TOKEN, XAI_API_KEY, …)
-
-  core/                 plumbing, knows nothing about chat or music
-    client.ts           Client + intents
-    feature.ts          the Feature interface (below)
-    commands/
-      types.ts          Command, CommandContext (today's types.ts)
-      registry.ts       collects commands from all features
-      dispatch.ts       prefix messages and slash → context → run
-      slash.ts          toSlashJSON (today's lib/utils/slash.ts)
-      guards.ts         dev role, music-channel check, in-voice check
-
-  features/             one folder per thing the bot does
-    general/            commands/ping.ts, help.ts
-    chat/
-      index.ts          Feature: registers the MessageCreate listener
-      handler.ts        "should I reply here?" (channels + chat settings)
-      history.ts        channel history → model messages
-      prompt.ts         system prompt from persona + rules
-      reply.ts          model call, cleanup, send
-    music/
-      index.ts          Feature: commands + player setup
-      commands/         play, skip, stop, queue, pause, resume, nowplaying
-      player.ts         discord-player + extractors
-      access.ts         musicChannelIds and same-voice-channel checks
-      announcements.ts  "now playing" messages
-      ui/               queue embed, formatting
-
-  lib/                  generic helpers, no Discord or feature knowledge
-    fs.ts  text.ts  random.ts  time.ts
-  scripts/register.ts   registers slash commands from the registry
-```
-
 ## Features:
 
 ### General
 
-- [/] /help (core done, should add pages like -help music, -help chat etc)
+- [x] /help (pages per feature and per command: -help music, -help play)
 
 ### Chat
 
 - [x] hook up to grok
-- [ ] per channel busy (queue)
+- [x] per channel busy (queue) (turns.ts)
+
+## Next up (porting from guttasjefen, in priority order)
+
+1. [x] image fallback: retry without images when one fails (expired discord urls), only send recent images · small
+2. [x] fallback reply on error / content filter (sendReply currently sends nothing) · small
+3. [ ] reply chain context: follow the replied-to message back past historyLimit (old replyChain()) · small-medium
+4. [ ] answering marker: fetch history before the trigger message, mark it when newer messages piled up while queued · small
+5. [ ] lore: db table, relevance pick for the prompt, update after replies, web page like profiles · medium
+6. [ ] decide: bot's own made-up life (old lore.md + "meg") vs server topics/running jokes, or both with a kind column
+7. [ ] prod deploy (only docker-compose.dev.yml exists) · small-medium
+8. [x] core/commands/guards.ts (dev role check, `devOnly` on a command) · small
+9. [ ] port scripts/test-prompt.ts for prompt testing outside discord · small-medium
+10. [x] music: move / reorder queue · small
+11. [x] music: undo / restart last queue on accidental /stop · small-medium
+12. [x] /help pages per feature (-help music, -help chat) · small
+13. [ ] anti-repetition: best-of-n + judge, reused word / opener filters (wait until it repeats itself, costs n calls) · medium
+14. [ ] humour dials: taste distill + sliders in the web app · large
+15. [ ] scenarios, (minigame, gives u a scenario, u have to answer, the bot judges your answer)
 
 ### Music
 
@@ -65,5 +45,5 @@ apps/bot/src/
 - [x] skipto
 - [x] playnow
 - [x] playnext
-- [ ] move / reorder queue
-- [ ] undo / restart last queue on accidental /stop
+- [x] move / reorder queue
+- [x] undo / restart last queue on accidental /stop (restore, window in music settings)

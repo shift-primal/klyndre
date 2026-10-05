@@ -7,7 +7,7 @@ export const queue: Command = {
 	name: "queue",
 	aliases: ["q"],
 	description: "Show the current queue",
-	argument: { name: "page", description: "Page number" },
+	arguments: [{ name: "page", description: "Page number" }],
 	async run(ctx) {
 		const activeQueue = await requireQueue(ctx, { sameChannel: false });
 		if (!activeQueue) return;

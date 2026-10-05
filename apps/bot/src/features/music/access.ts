@@ -30,6 +30,7 @@ export async function requireUpcomingTrack(
 	ctx: CommandContext,
 	queue: ActiveQueue,
 	action: string,
+	input = ctx.args,
 ): Promise<{ track: Track; position: number } | null> {
 	const upcoming = queue.tracks.toArray();
 	if (upcoming.length === 0) {
@@ -37,11 +38,11 @@ export async function requireUpcomingTrack(
 		return null;
 	}
 
-	const track = findTrack(upcoming, ctx.args);
+	const track = findTrack(upcoming, input);
 	if (!track) {
 		await refuse(
 			ctx,
-			`No track in the queue matches "${ctx.args}". Use its number from the queue command, or part of its title.`,
+			`No track in the queue matches "${input}". Use its number from the queue command, or part of its title.`,
 		);
 		return null;
 	}

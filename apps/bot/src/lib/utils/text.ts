@@ -1,12 +1,14 @@
 import { escapeMarkdown } from "discord.js";
-import type { Command } from "#/core/commands/types";
+import type { CommandArgument } from "#/core/commands/types";
 
 export function escapeLabel(text: string): string {
 	return escapeMarkdown(text).replace(/[[\]]/g, "\\$&");
 }
 
-export function formatArgument(argument: NonNullable<Command["argument"]>) {
-	return argument.required ? `<${argument.name}>` : `[${argument.name}]`;
+export function formatArguments(args: CommandArgument[] = []) {
+	return args
+		.map((arg) => (arg.required ? `<${arg.name}>` : `[${arg.name}]`))
+		.join(" ");
 }
 
 // splits text into pieces of at most `size` chars, preferring to break on newlines
