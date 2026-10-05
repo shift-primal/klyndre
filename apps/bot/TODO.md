@@ -52,11 +52,15 @@ apps/bot/src/
 - [x] play
 - [x] skip
 - [x] stop
-- [ ] pause
-- [ ] resume
-- [ ] queue system
-- [ ] remove
-- [ ] now playing
-- [ ] shuffle
-- [ ] skip
-- [ ] skipto
+- [x] pause
+- [x] resume
+- [x] queue system
+- [x] remove
+- [x] now playing
+- [x] shuffle
+- [x] skip
+- [x] skipto
+- [x] playnow
+- [x] playnext
+- [ ] move / reorder queue
+- [ ] undo / restart last queue on accidental /stop

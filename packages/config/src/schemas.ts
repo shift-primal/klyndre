@@ -53,9 +53,11 @@ export const moduleSchemas = {
 } as const;
 
 export type ModuleName = keyof typeof moduleSchemas;
+
 export type Settings<M extends ModuleName> = z.output<
 	(typeof moduleSchemas)[M]
 >;
+
 export type SettingsInput<M extends ModuleName> = z.input<
 	(typeof moduleSchemas)[M]
 >;

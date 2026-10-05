@@ -1,4 +1,7 @@
 import type { Command } from "#/core/commands/types";
+import { playNext } from "#/features/music/commands/play-next";
+import { playNow } from "#/features/music/commands/play-now";
+import { skipTo } from "#/features/music/commands/skip-to";
 import { loop } from "./loop";
 import { nowplaying } from "./nowplaying";
 import { pause } from "./pause";
@@ -15,10 +18,13 @@ export const musicCommands: Command[] = [
 	nowplaying,
 	pause,
 	play,
+	playNext,
+	playNow,
 	queue,
 	remove,
 	resume,
 	shuffle,
 	skip,
+	skipTo,
 	stop,
 ];
