@@ -1,12 +1,15 @@
 import { getSettings } from "@klyndre/config";
 import type { Message } from "discord.js";
+import { buildHistory } from "#/features/chat/history";
+import { buildInstructions } from "#/features/chat/prompt";
+import { sendReply } from "#/features/chat/reply";
 
 export type ReplyReason = "mention" | "aiChannel" | "random";
 
 export async function replyReason(
-	message: Message,
+	message: Message<true>,
 ): Promise<ReplyReason | null> {
-	if (message.author.bot || !message.inGuild()) return null;
+	if (message.author.bot) return null;
 	if (!message.content && message.attachments.size === 0) return null;
 
 	const { prefix } = await getSettings(message.guildId, "commands");
@@ -29,8 +32,18 @@ export async function replyReason(
 }
 
 export const handleMessage = async (message: Message) => {
+	if (!message.inGuild()) return;
+
 	const reason = await replyReason(message);
 	if (!reason) return;
 
-	await message.reply("hei");
+	try {
+		const [history, instructions] = await Promise.all([
+			buildHistory(message),
+			buildInstructions(message),
+		]);
+		await sendReply(message, reason, instructions, history);
+	} catch (error) {
+		console.error("[chat]", error);
+	}
 };

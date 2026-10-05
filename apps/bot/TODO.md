@@ -46,6 +46,9 @@ apps/bot/src/
 
 ### Chat
 
+- [x] hook up to grok
+- [ ] per channel busy (queue)
+
 ### Music
 
 - [x] set up player
