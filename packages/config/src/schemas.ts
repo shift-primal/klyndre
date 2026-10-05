@@ -31,6 +31,9 @@ export const chatSettings = z.object({
 	maxImages: field(count, d.chat.maxImages),
 	imageMaxAgeMs: field(count, d.chat.imageMaxAgeMs),
 	maxReplyTokens: field(z.int().min(16).max(4000), d.chat.maxReplyTokens),
+	singleLineReplies: field(z.boolean(), d.chat.singleLineReplies),
+	lowercaseReplies: field(z.boolean(), d.chat.lowercaseReplies),
+	stripEmojis: field(z.boolean(), d.chat.stripEmojis),
 	turnWaitLimitMs: field(count, d.chat.turnWaitLimitMs),
 	timeZone: field(timeZone, d.chat.timeZone),
 	profilesEnabled: field(z.boolean(), d.chat.profilesEnabled),
@@ -47,6 +50,7 @@ export const personalitySettings = z.object({
 	persona: field(z.string(), d.personality.persona),
 	rules: field(z.string(), d.personality.rules),
 	format: field(z.string(), d.personality.format),
+	peopleGuidance: field(z.string(), d.personality.peopleGuidance),
 	profileInstructions: field(
 		z.string().min(1),
 		d.personality.profileInstructions,

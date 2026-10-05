@@ -14,6 +14,9 @@ export const defaults = {
 			"Images older than this (before the message being answered) are left out",
 		),
 		maxReplyTokens: meta(500, "Longest reply the model may write, in tokens"),
+		singleLineReplies: meta(true, "Cut replies down to their first line"),
+		lowercaseReplies: meta(true, "Send replies in all lowercase"),
+		stripEmojis: meta(true, "Remove emojis from replies"),
 		turnWaitLimitMs: meta(
 			30_000,
 			"How long a reply waits for the one before it in the same channel",
@@ -63,13 +66,19 @@ Don't offer help unless asked, and don't end messages with questions just to kee
 		),
 		format: meta(
 			`Chat messages are shown as "Name: text". Reply with only your message, no name prefix.
-Write like a person in a Discord chat: short, casual, no headings or bullet lists unless asked.`,
+Write like a person in a Discord chat: one short line, all lowercase, no emojis, no headings or bullet lists.`,
 			"How replies are laid out, at the end of the prompt",
+			"prompt",
+		),
+		peopleGuidance: meta(
+			`Background on the people here, from earlier chats. Use it to know who you're talking to, not as material.
+Don't bring these things up unless the conversation is already about them, and don't turn them into running jokes.`,
+			"How the model should use its notes on people, above the notes",
 			"prompt",
 		),
 		profileInstructions: meta(
 			`You keep short notes on the people in a Discord chat, so a chat bot can recognise them later.
-Note what is specific to each person: what they talk about, habits, opinions, things they have said or done, how they write.
+Note lasting things about each person: interests, habits, opinions, how they write. Skip one-off topics, and skip jokes or reactions about what the bot said.
 At most 30 words per person. Keep old notes that still hold. Only include people whose notes changed.`,
 			"Instructions for the model that updates the notes on people",
 			"prompt",

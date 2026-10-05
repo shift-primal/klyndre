@@ -7,6 +7,7 @@ export interface PromptParts {
 	rules: string;
 	format: string;
 	people: string;
+	peopleGuidance: string;
 	context: {
 		botName: string;
 		server: string;
@@ -27,11 +28,13 @@ const buildParts = async (
 	message: Message<true>,
 	people: People,
 ): Promise<PromptParts> => {
-	const [{ persona, rules, format }, { timeZone, profilesEnabled }] =
-		await Promise.all([
-			getSettings(message.guildId, "personality"),
-			getSettings(message.guildId, "chat"),
-		]);
+	const [
+		{ persona, rules, format, peopleGuidance },
+		{ timeZone, profilesEnabled },
+	] = await Promise.all([
+		getSettings(message.guildId, "personality"),
+		getSettings(message.guildId, "chat"),
+	]);
 	const notes = profilesEnabled
 		? await loadNotes(message.guildId, people)
 		: new Map<string, string>();
@@ -43,6 +46,8 @@ const buildParts = async (
 		rules,
 		format,
 		people: describePeople(people, notes),
+		// only worth saying when there are notes to go with it
+		peopleGuidance: notes.size > 0 ? peopleGuidance : "",
 		context: {
 			botName,
 			server: message.guild.name,
@@ -52,14 +57,22 @@ const buildParts = async (
 	};
 };
 
-const render = ({ persona, rules, format, people, context }: PromptParts) =>
+const render = ({
+	persona,
+	rules,
+	format,
+	people,
+	peopleGuidance,
+	context,
+}: PromptParts) =>
 	[
 		persona,
 		rules,
 		`## Context
 You are ${context.botName} in the server "${context.server}", channel #${context.channel}.
 Current time: ${context.now}.`,
-		people && `## People in the chat\n${people}`,
+		people &&
+			`## People in the chat\n${[peopleGuidance, people].filter(Boolean).join("\n\n")}`,
 		format && `## Format\n${format}`,
 	]
 		.filter(Boolean)

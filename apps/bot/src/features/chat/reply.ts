@@ -14,12 +14,29 @@ const allowedMentions: MessageMentionOptions = {
 const cleanReply = (message: Message<true>, text: string) => {
 	const name =
 		message.guild.members.me?.displayName ?? message.client.user.username;
-	const reply = text.trim();
+	// grok sometimes leaks special tokens like <|eos|> into the text
+	const reply = text.replace(/<\|[\w-]+\|>/g, "").trim();
 	const prefix = `${name}:`;
 	return reply.toLowerCase().startsWith(prefix.toLowerCase())
 		? reply.slice(prefix.length).trim()
 		: reply;
 };
+
+// unicode emojis (with their joiners and variation selectors) and discord custom emojis
+const EMOJI =
+	/<a?:\w+:\d+>|\p{Extended_Pictographic}|\p{Emoji_Modifier}|\u200d|\ufe0f|\u20e3/gu;
+
+async function styleReply(guildId: string, text: string) {
+	const { singleLineReplies, lowercaseReplies, stripEmojis } =
+		await getSettings(guildId, "chat");
+	let reply = text;
+	if (stripEmojis) reply = reply.replace(EMOJI, "");
+	if (singleLineReplies) {
+		reply = reply.split("\n").find((line) => line.trim()) ?? "";
+	}
+	if (lowercaseReplies) reply = reply.toLowerCase();
+	return reply.replace(/[ \t]{2,}/g, " ").trim();
+}
 
 const hasImages = (history: ModelMessage[]) =>
 	history.some(
@@ -76,7 +93,9 @@ async function pickReply(
 			history,
 		);
 		if (finishReason === "content-filter") return contentFilterReply;
-		return cleanReply(message, text) || fallbackReply;
+		const reply = cleanReply(message, text);
+		// an emoji-only reply styles down to nothing, which means stay quiet
+		return reply ? await styleReply(message.guildId, reply) : fallbackReply;
 	} catch (error) {
 		console.error("[chat]", error);
 		return fallbackReply;
