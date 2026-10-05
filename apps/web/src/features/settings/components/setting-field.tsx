@@ -10,7 +10,7 @@ import { Switch } from "#/components/ui/switch";
 import { Textarea } from "#/components/ui/textarea";
 import type { ChannelOption, RoleOption } from "#/features/guilds/lib/types";
 import { PresetBar } from "#/features/prompts/components/preset-bar";
-import type { PromptKind } from "#/features/prompts/lib/prompt-kinds";
+import { isPromptKind } from "#/features/prompts/lib/prompt-kinds";
 import { ChannelPicker } from "#/features/settings/components/channel-picker";
 import { RolePicker } from "#/features/settings/components/role-picker";
 import type { FieldSpec } from "#/features/settings/lib/fields";
@@ -91,9 +91,9 @@ const Control = ({
 						onChange={(event) => onChange(event.target.value)}
 						disabled={disabled}
 					/>
-					{spec.kind === "prompt" && !disabled && (
+					{spec.kind === "prompt" && !disabled && isPromptKind(spec.key) && (
 						<PresetBar
-							kind={spec.key as PromptKind}
+							kind={spec.key}
 							text={String(value ?? "")}
 							defaultText={String(defaultValue ?? "")}
 							onLoad={onChange}

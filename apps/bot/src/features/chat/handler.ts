@@ -1,6 +1,8 @@
 import { getSettings } from "@klyndre/config";
 import type { Message } from "discord.js";
 import { buildHistory } from "#/features/chat/history";
+import { maybeUpdateLore, noteUsage, pickLore } from "#/features/chat/lore";
+import { recentReplies, type Turn } from "#/features/chat/openers";
 import { maybeUpdateNotes } from "#/features/chat/profiles";
 import { buildInstructions } from "#/features/chat/prompt";
 import { sendReply } from "#/features/chat/reply";
@@ -41,10 +43,20 @@ export const handleMessage = async (message: Message) => {
 
 	const { turnWaitLimitMs } = await getSettings(message.guildId, "chat");
 	await inTurn(message.channelId, turnWaitLimitMs, async () => {
-		const { messages, people } = await buildHistory(message);
-		const instructions = await buildInstructions(message, people);
-		await sendReply(message, instructions, messages);
+		const { messages, people, humanText } = await buildHistory(message);
+		const lore = await pickLore(message, humanText);
+		const { openerMemory } = await getSettings(message.guildId, "chat");
+		const turn: Turn = {
+			recent: recentReplies(messages, openerMemory),
+			canSkip: reason !== "mention",
+		};
+		const instructions = await buildInstructions(message, people, lore);
+		const reply = await sendReply(message, instructions, messages, turn);
 
 		void maybeUpdateNotes(message, people, messages);
+		if (!reply) return;
+
+		await noteUsage(message, lore.unprompted, reply);
+		void maybeUpdateLore(message, messages, reply);
 	});
 };

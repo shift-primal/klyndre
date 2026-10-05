@@ -28,7 +28,7 @@ function GuildLayout() {
 				<h1 className="text-2xl font-semibold">{guild.name}</h1>
 			</div>
 			<nav className="flex gap-4 border-b pb-2 text-sm">
-				{(["settings", "profiles"] as const).map((page) => (
+				{(["settings", "profiles", "lore"] as const).map((page) => (
 					<Link
 						key={page}
 						to={`/guilds/$guildId/${page}`}

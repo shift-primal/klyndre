@@ -11,6 +11,16 @@ export function formatArguments(args: CommandArgument[] = []) {
 		.join(" ");
 }
 
+// the distinct lowercase words in text, in any language
+export function words(text: string): Set<string> {
+	return new Set(
+		text
+			.toLowerCase()
+			.split(/[^\p{L}\p{N}]+/u)
+			.filter(Boolean),
+	);
+}
+
 // splits text into pieces of at most `size` chars, preferring to break on newlines
 export function chunk(text: string, size: number): string[] {
 	const chunks: string[] = [];

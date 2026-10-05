@@ -2,6 +2,12 @@ import { getSettings } from "@klyndre/config";
 import { generateText, type ModelMessage } from "ai";
 import type { Message, MessageMentionOptions } from "discord.js";
 import { chatModel } from "#/features/chat/model";
+import {
+	firstWord,
+	isSkip,
+	openerHabit,
+	type Turn,
+} from "#/features/chat/openers";
 import { chunk } from "#/lib/utils/text";
 
 const DISCORD_MAX_LENGTH = 2000;
@@ -46,7 +52,7 @@ const hasImages = (history: ModelMessage[]) =>
 			msg.content.some((part) => part.type === "file"),
 	);
 
-const withoutImages = (history: ModelMessage[]): ModelMessage[] =>
+export const withoutImages = (history: ModelMessage[]): ModelMessage[] =>
 	history.map((msg) =>
 		msg.role === "user" && Array.isArray(msg.content)
 			? { ...msg, content: msg.content.filter((part) => part.type !== "file") }
@@ -77,23 +83,70 @@ async function generate(
 	}
 }
 
+// notes go after the last message, where the model actually acts on them
+const withNote = (history: ModelMessage[], note: string): ModelMessage[] => {
+	if (!note) return history;
+	const text = `(note to you: ${note})`;
+	const last = history.at(-1);
+	if (last?.role !== "user")
+		return [...history, { role: "user", content: text }];
+
+	const content =
+		typeof last.content === "string"
+			? `${last.content}\n\n${text}`
+			: [...last.content, { type: "text" as const, text }];
+	return [...history.slice(0, -1), { ...last, content }];
+};
+
 async function pickReply(
 	message: Message<true>,
 	instructions: string,
 	history: ModelMessage[],
+	turn: Turn,
 ) {
-	const { fallbackReply, contentFilterReply } = await getSettings(
-		message.guildId,
-		"personality",
-	);
-	try {
+	const [
+		{
+			fallbackReply,
+			contentFilterReply,
+			skipMarker,
+			skipNote,
+			repeatedOpenerNote,
+		},
+		{ openerRepeatLimit },
+	] = await Promise.all([
+		getSettings(message.guildId, "personality"),
+		getSettings(message.guildId, "chat"),
+	]);
+	const habit = openerHabit(turn.recent, openerRepeatLimit);
+	const note = [
+		habit && repeatedOpenerNote.replaceAll("{word}", habit),
+		turn.canSkip && skipMarker && skipNote.replaceAll("{marker}", skipMarker),
+	]
+		.filter(Boolean)
+		.join(" ");
+
+	// null when the content filter stopped it
+	const attempt = async () => {
 		const { text, finishReason } = await generate(
 			message.guildId,
 			instructions,
-			history,
+			withNote(history, note),
 		);
-		if (finishReason === "content-filter") return contentFilterReply;
-		const reply = cleanReply(message, text);
+		return finishReason === "content-filter" ? null : cleanReply(message, text);
+	};
+
+	try {
+		let reply = await attempt();
+		if (reply === null) return contentFilterReply;
+
+		// one more try when it opens the way it keeps opening anyway
+		if (habit && firstWord(reply) === habit && !isSkip(reply, skipMarker)) {
+			console.log(`[chat] retrying a reply that opens with "${habit}" again`);
+			const retry = await attempt().catch(() => null);
+			if (retry) reply = retry;
+		}
+
+		if (isSkip(reply, skipMarker)) return turn.canSkip ? "" : fallbackReply;
 		// an emoji-only reply styles down to nothing, which means stay quiet
 		return reply ? await styleReply(message.guildId, reply) : fallbackReply;
 	} catch (error) {
@@ -106,7 +159,8 @@ export async function sendReply(
 	message: Message<true>,
 	instructions: string,
 	history: ModelMessage[],
-): Promise<void> {
+	turn: Turn,
+): Promise<string | null> {
 	await message.channel.sendTyping();
 
 	const typing = setInterval(
@@ -115,12 +169,13 @@ export async function sendReply(
 	);
 
 	try {
-		const reply = await pickReply(message, instructions, history);
-		if (!reply) return;
+		const reply = await pickReply(message, instructions, history, turn);
+		if (!reply) return null;
 
 		for (const part of chunk(reply, DISCORD_MAX_LENGTH)) {
 			await message.reply({ content: part, allowedMentions });
 		}
+		return reply;
 	} finally {
 		clearInterval(typing);
 	}

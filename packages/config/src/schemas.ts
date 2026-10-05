@@ -28,6 +28,8 @@ export const chatSettings = z.object({
 	model: field(z.string().min(1), d.chat.model),
 	randomReplyChance: field(chance, d.chat.randomReplyChance),
 	historyLimit: field(z.int().min(1).max(100), d.chat.historyLimit),
+	laterLimit: field(z.int().min(0).max(100), d.chat.laterLimit),
+	threadLimit: field(z.int().min(0).max(50), d.chat.threadLimit),
 	maxImages: field(count, d.chat.maxImages),
 	imageMaxAgeMs: field(count, d.chat.imageMaxAgeMs),
 	maxReplyTokens: field(z.int().min(16).max(4000), d.chat.maxReplyTokens),
@@ -38,6 +40,20 @@ export const chatSettings = z.object({
 	timeZone: field(timeZone, d.chat.timeZone),
 	profilesEnabled: field(z.boolean(), d.chat.profilesEnabled),
 	profileUpdateEvery: field(z.int().min(1), d.chat.profileUpdateEvery),
+	openerMemory: field(z.int().min(0).max(20), d.chat.openerMemory),
+	openerRepeatLimit: field(count, d.chat.openerRepeatLimit),
+	loreEnabled: field(z.boolean(), d.chat.loreEnabled),
+	loreShown: field(z.int().min(0).max(30), d.chat.loreShown),
+	loreRandomFill: field(z.int().min(0).max(10), d.chat.loreRandomFill),
+	loreCooldownReplies: field(count, d.chat.loreCooldownReplies),
+	loreUpdateEvery: field(z.int().min(1), d.chat.loreUpdateEvery),
+	loreMaxEntries: field(z.int().min(1), d.chat.loreMaxEntries),
+	loreMaxNewPerUpdate: field(count, d.chat.loreMaxNewPerUpdate),
+	loreKeyWordLength: field(z.int().min(1).max(20), d.chat.loreKeyWordLength),
+	loreNoteWordLength: field(z.int().min(1).max(20), d.chat.loreNoteWordLength),
+	loreRareWordLimit: field(z.int().min(1), d.chat.loreRareWordLimit),
+	loreEvidenceWords: field(z.int().min(1).max(20), d.chat.loreEvidenceWords),
+	loreUpdateContext: field(count, d.chat.loreUpdateContext),
 });
 
 export const channelsSettings = z.object({
@@ -55,8 +71,15 @@ export const personalitySettings = z.object({
 		z.string().min(1),
 		d.personality.profileInstructions,
 	),
+	selfLoreGuidance: field(z.string(), d.personality.selfLoreGuidance),
+	serverLoreGuidance: field(z.string(), d.personality.serverLoreGuidance),
+	loreInstructions: field(z.string().min(1), d.personality.loreInstructions),
+	repeatedOpenerNote: field(z.string(), d.personality.repeatedOpenerNote),
+	skipNote: field(z.string(), d.personality.skipNote),
+	skipMarker: field(z.string(), d.personality.skipMarker),
 	fallbackReply: field(z.string(), d.personality.fallbackReply),
 	contentFilterReply: field(z.string(), d.personality.contentFilterReply),
+	answeringMarker: field(z.string(), d.personality.answeringMarker),
 });
 
 export const commandsSettings = z.object({
