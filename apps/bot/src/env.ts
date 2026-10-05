@@ -11,7 +11,7 @@ const optional = <T extends z.ZodType>(schema: T) =>
 	);
 
 const runtimeSchema = z.object({
-	// XAI_API_KEY: z.string().min(1),
+	XAI_API_KEY: z.string().min(1),
 	DISCORD_TOKEN: z.string().min(1),
 	DEBUG_PLAYER: optional(z.stringbool()).default(false),
 	DP_SPOTIFY_CLIENT_ID: optional(z.string()),
