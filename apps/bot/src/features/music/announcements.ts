@@ -112,11 +112,16 @@ export function registerAnnouncements(player: Player) {
 	});
 
 	player.events.on("emptyQueue", async (queue) => {
-		const { leaveOnEndMs } = await getSettings(queue.guild.id, "music");
+		const { leaveOnEnd, leaveOnEndMs } = await getSettings(
+			queue.guild.id,
+			"music",
+		);
 		const minutes = Math.round(leaveOnEndMs / 60_000);
 		await announce(
 			queue,
-			`✅ Queue finished. I'll leave in ${minutes} minutes if nothing else is queued.`,
+			leaveOnEnd
+				? `✅ Queue finished. I'll leave in ${minutes} minutes if nothing else is queued.`
+				: "✅ Queue finished.",
 		);
 	});
 

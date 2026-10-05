@@ -1,13 +1,15 @@
 import { setTimeout as sleep } from "node:timers/promises";
 
-const MAX_WAIT_MS = 30_000;
-
 const turns = new Map<string, Promise<void>>();
 
-export function inTurn(channelId: string, task: () => Promise<void>) {
+export function inTurn(
+	channelId: string,
+	maxWaitMs: number,
+	task: () => Promise<void>,
+) {
 	const previous = turns.get(channelId);
 	const wait = previous
-		? Promise.race([previous, sleep(MAX_WAIT_MS)])
+		? Promise.race([previous, sleep(maxWaitMs)])
 		: Promise.resolve();
 
 	const next = wait

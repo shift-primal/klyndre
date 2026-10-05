@@ -34,12 +34,15 @@ export async function sendReply(
 	);
 
 	try {
-		const { model } = await getSettings(message.guildId, "chat");
+		const { model, maxReplyTokens } = await getSettings(
+			message.guildId,
+			"chat",
+		);
 		const { text } = await generateText({
 			model: chatModel(model),
 			instructions,
 			messages: history,
-			maxOutputTokens: 500,
+			maxOutputTokens: maxReplyTokens,
 		});
 
 		const reply = cleanReply(message, text);

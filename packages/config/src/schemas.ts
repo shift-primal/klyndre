@@ -14,11 +14,25 @@ const chance = z.number().min(0).max(1);
 const count = z.int().min(0);
 const ids = z.array(z.string());
 
+const isTimeZone = (name: string) => {
+	try {
+		new Intl.DateTimeFormat("en", { timeZone: name });
+		return true;
+	} catch {
+		return false;
+	}
+};
+const timeZone = z.string().refine(isTimeZone, "Unknown time zone");
+
 export const chatSettings = z.object({
 	model: field(z.string().min(1), d.chat.model),
 	randomReplyChance: field(chance, d.chat.randomReplyChance),
 	historyLimit: field(z.int().min(1).max(100), d.chat.historyLimit),
 	maxImages: field(count, d.chat.maxImages),
+	maxReplyTokens: field(z.int().min(16).max(4000), d.chat.maxReplyTokens),
+	turnWaitLimitMs: field(count, d.chat.turnWaitLimitMs),
+	timeZone: field(timeZone, d.chat.timeZone),
+	profilesEnabled: field(z.boolean(), d.chat.profilesEnabled),
 	profileUpdateEvery: field(z.int().min(1), d.chat.profileUpdateEvery),
 });
 
@@ -31,6 +45,11 @@ export const channelsSettings = z.object({
 export const personalitySettings = z.object({
 	persona: field(z.string(), d.personality.persona),
 	rules: field(z.string(), d.personality.rules),
+	format: field(z.string(), d.personality.format),
+	profileInstructions: field(
+		z.string().min(1),
+		d.personality.profileInstructions,
+	),
 });
 
 export const commandsSettings = z.object({
@@ -39,8 +58,11 @@ export const commandsSettings = z.object({
 });
 
 export const musicSettings = z.object({
+	leaveOnEmpty: field(z.boolean(), d.music.leaveOnEmpty),
 	leaveOnEmptyMs: field(count, d.music.leaveOnEmptyMs),
+	leaveOnEnd: field(z.boolean(), d.music.leaveOnEnd),
 	leaveOnEndMs: field(count, d.music.leaveOnEndMs),
+	leaveOnStop: field(z.boolean(), d.music.leaveOnStop),
 	maxTrackRetries: field(count, d.music.maxTrackRetries),
 	queuePageSize: field(z.int().min(1).max(25), d.music.queuePageSize),
 });

@@ -39,7 +39,8 @@ export const handleMessage = async (message: Message) => {
 	const reason = await replyReason(message);
 	if (!reason) return;
 
-	await inTurn(message.channelId, async () => {
+	const { turnWaitLimitMs } = await getSettings(message.guildId, "chat");
+	await inTurn(message.channelId, turnWaitLimitMs, async () => {
 		const { messages, people } = await buildHistory(message);
 		const instructions = await buildInstructions(message, people);
 		await sendReply(message, instructions, messages);

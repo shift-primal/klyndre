@@ -12,9 +12,9 @@ export const queueOptions = (settings: Settings<"music">) =>
 		disableReverb: true,
 		disableSeeker: true,
 		disableFallbackStream: true,
-		leaveOnEmpty: true,
+		leaveOnEmpty: settings.leaveOnEmpty,
 		leaveOnEmptyCooldown: settings.leaveOnEmptyMs,
-		leaveOnEnd: true,
+		leaveOnEnd: settings.leaveOnEnd,
 		leaveOnEndCooldown: settings.leaveOnEndMs,
-		leaveOnStop: true,
+		leaveOnStop: settings.leaveOnStop,
 	}) as const;

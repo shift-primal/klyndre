@@ -5,6 +5,7 @@ import { loadNotes, type People } from "#/features/chat/profiles";
 export interface PromptParts {
 	persona: string;
 	rules: string;
+	format: string;
 	people: string;
 	context: {
 		botName: string;
@@ -26,30 +27,32 @@ const buildParts = async (
 	message: Message<true>,
 	people: People,
 ): Promise<PromptParts> => {
-	const [{ persona, rules }, notes] = await Promise.all([
-		getSettings(message.guildId, "personality"),
-		loadNotes(message.guildId, people),
-	]);
+	const [{ persona, rules, format }, { timeZone, profilesEnabled }] =
+		await Promise.all([
+			getSettings(message.guildId, "personality"),
+			getSettings(message.guildId, "chat"),
+		]);
+	const notes = profilesEnabled
+		? await loadNotes(message.guildId, people)
+		: new Map<string, string>();
 	const botName =
 		message.guild.members.me?.displayName ?? message.client.user.username;
 
 	return {
 		persona: persona || `You are ${botName}, a member of this Discord server.`,
 		rules,
+		format,
 		people: describePeople(people, notes),
 		context: {
 			botName,
 			server: message.guild.name,
 			channel: message.channel.name,
-			now: new Date().toLocaleDateString("en-GB", { timeZone: "Europe/Oslo" }),
+			now: new Date().toLocaleDateString("en-GB", { timeZone }),
 		},
 	};
 };
 
-const FORMAT = `Chat messages are shown as "Name: text". Reply with only your message, no name prefix.
-Write like a person in a Discord chat: short, casual, no headings or bullet lists unless asked.`;
-
-const render = ({ persona, rules, people, context }: PromptParts) =>
+const render = ({ persona, rules, format, people, context }: PromptParts) =>
 	[
 		persona,
 		rules,
@@ -57,7 +60,7 @@ const render = ({ persona, rules, people, context }: PromptParts) =>
 You are ${context.botName} in the server "${context.server}", channel #${context.channel}.
 Current time: ${context.now}.`,
 		people && `## People in the chat\n${people}`,
-		`## Format\n${FORMAT}`,
+		format && `## Format\n${format}`,
 	]
 		.filter(Boolean)
 		.join("\n\n");

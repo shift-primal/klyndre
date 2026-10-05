@@ -34,6 +34,7 @@ const sameValue = (a: unknown, b: unknown) =>
 const Control = ({
 	spec,
 	value,
+	defaultValue,
 	onChange,
 	onBlur,
 	invalid,
@@ -94,6 +95,7 @@ const Control = ({
 						<PresetBar
 							kind={spec.key as PromptKind}
 							text={String(value ?? "")}
+							defaultText={String(defaultValue ?? "")}
 							onLoad={onChange}
 						/>
 					)}

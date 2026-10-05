@@ -56,6 +56,7 @@ export const YoutubeCookiesForm = ({ info }: Props) => {
 				onChange={(event) => setValue(event.target.value)}
 				placeholder="# Netscape HTTP Cookie File"
 				rows={8}
+				// oxlint-disable-next-line shadcn/no-restyle
 				className="font-mono"
 				autoComplete="off"
 				spellCheck={false}

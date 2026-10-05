@@ -9,6 +9,19 @@ export const defaults = {
 		),
 		historyLimit: meta(25, "Chat messages read before each reply"),
 		maxImages: meta(4, "Images sent to the model per reply"),
+		maxReplyTokens: meta(500, "Longest reply the model may write, in tokens"),
+		turnWaitLimitMs: meta(
+			30_000,
+			"How long a reply waits for the one before it in the same channel",
+		),
+		timeZone: meta(
+			"Europe/Oslo",
+			"Time zone for the date in the prompt (IANA name, like Europe/Oslo)",
+		),
+		profilesEnabled: meta(
+			true,
+			"Keep notes on people and show them to the model",
+		),
 		profileUpdateEvery: meta(
 			15,
 			"Replies in a channel between updates to its notes on people",
@@ -32,8 +45,31 @@ export const defaults = {
 		),
 	},
 	personality: {
-		persona: meta("", "Who the bot is, top of the system prompt", "prompt"),
-		rules: meta("", "How it writes in chat, after the persona", "prompt"),
+		persona: meta(
+			`You are a regular member of this Discord server, not an assistant.
+You have your own opinions, moods and sense of humour, and you join in like anyone else would.`,
+			"Who the bot is, top of the system prompt",
+			"prompt",
+		),
+		rules: meta(
+			`Match the tone and language of the chat. Have opinions, and disagree when you do.
+Don't offer help unless asked, and don't end messages with questions just to keep things going.`,
+			"How it writes in chat, after the persona",
+			"prompt",
+		),
+		format: meta(
+			`Chat messages are shown as "Name: text". Reply with only your message, no name prefix.
+Write like a person in a Discord chat: short, casual, no headings or bullet lists unless asked.`,
+			"How replies are laid out, at the end of the prompt",
+			"prompt",
+		),
+		profileInstructions: meta(
+			`You keep short notes on the people in a Discord chat, so a chat bot can recognise them later.
+Note what is specific to each person: what they talk about, habits, opinions, things they have said or done, how they write.
+At most 30 words per person. Keep old notes that still hold. Only include people whose notes changed.`,
+			"Instructions for the model that updates the notes on people",
+			"prompt",
+		),
 	},
 	commands: {
 		prefix: meta("-", "Prefix for text commands"),
@@ -44,8 +80,14 @@ export const defaults = {
 		),
 	},
 	music: {
+		leaveOnEmpty: meta(
+			true,
+			"Leave the voice channel when everyone else has left",
+		),
 		leaveOnEmptyMs: meta(60_000, "How long it stays in an empty voice channel"),
+		leaveOnEnd: meta(true, "Leave the voice channel when the queue ends"),
 		leaveOnEndMs: meta(5 * 60_000, "How long it stays after the queue ends"),
+		leaveOnStop: meta(true, "Leave the voice channel right away on stop"),
 		maxTrackRetries: meta(1, "Retries for a track that fails to play"),
 		queuePageSize: meta(10, "Tracks per page in the queue view"),
 	},

@@ -15,6 +15,7 @@ import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
 import { Route as AuthedSecretsRouteImport } from './routes/_authed/secrets'
 import { Route as AuthedGuildsGuildIdRouteRouteImport } from './routes/_authed/guilds/$guildId/route'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as AuthedGuildsGuildIdProfilesIndexRouteImport } from './routes/_authed/guilds/$guildId/profiles/index'
 import { Route as AuthedGuildsGuildIdSettingsIndexRouteImport } from './routes/_authed/guilds/$guildId/settings/index'
 
 const AuthedRoute = AuthedRouteImport.update({
@@ -47,6 +48,12 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthedGuildsGuildIdProfilesIndexRoute =
+  AuthedGuildsGuildIdProfilesIndexRouteImport.update({
+    id: '/profiles/',
+    path: '/profiles/',
+    getParentRoute: () => AuthedGuildsGuildIdRouteRoute,
+  } as any)
 const AuthedGuildsGuildIdSettingsIndexRoute =
   AuthedGuildsGuildIdSettingsIndexRouteImport.update({
     id: '/settings/',
@@ -60,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/secrets': typeof AuthedSecretsRoute
   '/guilds/$guildId': typeof AuthedGuildsGuildIdRouteRouteWithChildren
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/guilds/$guildId/profiles/': typeof AuthedGuildsGuildIdProfilesIndexRoute
   '/guilds/$guildId/settings/': typeof AuthedGuildsGuildIdSettingsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -68,6 +76,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthedIndexRoute
   '/guilds/$guildId': typeof AuthedGuildsGuildIdRouteRouteWithChildren
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/guilds/$guildId/profiles': typeof AuthedGuildsGuildIdProfilesIndexRoute
   '/guilds/$guildId/settings': typeof AuthedGuildsGuildIdSettingsIndexRoute
 }
 export interface FileRoutesById {
@@ -78,6 +87,7 @@ export interface FileRoutesById {
   '/_authed/': typeof AuthedIndexRoute
   '/_authed/guilds/$guildId': typeof AuthedGuildsGuildIdRouteRouteWithChildren
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/_authed/guilds/$guildId/profiles/': typeof AuthedGuildsGuildIdProfilesIndexRoute
   '/_authed/guilds/$guildId/settings/': typeof AuthedGuildsGuildIdSettingsIndexRoute
 }
 export interface FileRouteTypes {
@@ -88,6 +98,7 @@ export interface FileRouteTypes {
     | '/secrets'
     | '/guilds/$guildId'
     | '/api/auth/$'
+    | '/guilds/$guildId/profiles/'
     | '/guilds/$guildId/settings/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -96,6 +107,7 @@ export interface FileRouteTypes {
     | '/'
     | '/guilds/$guildId'
     | '/api/auth/$'
+    | '/guilds/$guildId/profiles'
     | '/guilds/$guildId/settings'
   id:
     | '__root__'
@@ -105,6 +117,7 @@ export interface FileRouteTypes {
     | '/_authed/'
     | '/_authed/guilds/$guildId'
     | '/api/auth/$'
+    | '/_authed/guilds/$guildId/profiles/'
     | '/_authed/guilds/$guildId/settings/'
   fileRoutesById: FileRoutesById
 }
@@ -158,6 +171,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authed/guilds/$guildId/profiles/': {
+      id: '/_authed/guilds/$guildId/profiles/'
+      path: '/profiles'
+      fullPath: '/guilds/$guildId/profiles/'
+      preLoaderRoute: typeof AuthedGuildsGuildIdProfilesIndexRouteImport
+      parentRoute: typeof AuthedGuildsGuildIdRouteRoute
+    }
     '/_authed/guilds/$guildId/settings/': {
       id: '/_authed/guilds/$guildId/settings/'
       path: '/settings'
@@ -169,11 +189,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthedGuildsGuildIdRouteRouteChildren {
+  AuthedGuildsGuildIdProfilesIndexRoute: typeof AuthedGuildsGuildIdProfilesIndexRoute
   AuthedGuildsGuildIdSettingsIndexRoute: typeof AuthedGuildsGuildIdSettingsIndexRoute
 }
 
 const AuthedGuildsGuildIdRouteRouteChildren: AuthedGuildsGuildIdRouteRouteChildren =
   {
+    AuthedGuildsGuildIdProfilesIndexRoute:
+      AuthedGuildsGuildIdProfilesIndexRoute,
     AuthedGuildsGuildIdSettingsIndexRoute:
       AuthedGuildsGuildIdSettingsIndexRoute,
   }

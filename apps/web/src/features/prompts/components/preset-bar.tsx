@@ -17,20 +17,30 @@ type Props = {
 	kind: PromptKind;
 	// what is currently written, saved as a preset on "Save as preset"
 	text: string;
+	// built-in preset, listed first, can't be deleted or overwritten
+	defaultText: string;
 	onLoad: (text: string) => void;
 };
 
-export const PresetBar = ({ kind, text, onLoad }: Props) => {
+const DEFAULT_ID = "default";
+const DEFAULT_NAME = "Default";
+
+export const PresetBar = ({ kind, text, defaultText, onLoad }: Props) => {
 	const { data: presets = [] } = usePresets(kind);
 	const { save, remove } = usePresetActions(kind);
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const [name, setName] = useState("");
 
-	const items = presets.map((preset) => ({
-		value: String(preset.id),
-		label: preset.name,
-	}));
+	const items = [
+		{ value: DEFAULT_ID, label: DEFAULT_NAME },
+		...presets.map((preset) => ({
+			value: String(preset.id),
+			label: preset.name,
+		})),
+	];
 	const selected = presets.find((preset) => String(preset.id) === selectedId);
+	const isDefault = selectedId === DEFAULT_ID;
+	const reservedName = name.trim().toLowerCase() === DEFAULT_NAME.toLowerCase();
 
 	return (
 		<div className="flex flex-col gap-2 rounded-lg border p-3">
@@ -41,15 +51,11 @@ export const PresetBar = ({ kind, text, onLoad }: Props) => {
 					onValueChange={(next) => {
 						setSelectedId(next);
 						const preset = presets.find((p) => String(p.id) === next);
-						if (preset) setName(preset.name);
+						setName(preset?.name ?? "");
 					}}
 				>
 					<SelectTrigger className="flex-1">
-						<SelectValue
-							placeholder={
-								presets.length ? "Saved presets" : "No saved presets yet"
-							}
-						/>
+						<SelectValue placeholder="Presets" />
 					</SelectTrigger>
 					<SelectContent>
 						<SelectGroup>
@@ -64,8 +70,11 @@ export const PresetBar = ({ kind, text, onLoad }: Props) => {
 				<Button
 					type="button"
 					variant="outline"
-					disabled={!selected}
-					onClick={() => selected && onLoad(selected.content)}
+					disabled={!selected && !isDefault}
+					onClick={() => {
+						if (isDefault) onLoad(defaultText);
+						else if (selected) onLoad(selected.content);
+					}}
 				>
 					Load
 				</Button>
@@ -94,7 +103,9 @@ export const PresetBar = ({ kind, text, onLoad }: Props) => {
 				/>
 				<Button
 					type="button"
-					disabled={!name.trim() || !text.trim() || save.isPending}
+					disabled={
+						!name.trim() || reservedName || !text.trim() || save.isPending
+					}
 					onClick={() => save.mutate({ name: name.trim(), content: text })}
 				>
 					Save as preset

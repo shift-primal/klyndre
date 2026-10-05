@@ -31,10 +31,6 @@ export async function clearNotes(guildId: string, userId: string) {
 	return removed.length > 0;
 }
 
-const UPDATE_INSTRUCTIONS = `You keep short notes on the people in a Discord chat, so a chat bot can recognise them later.
-Note what is specific to each person: what they talk about, habits, opinions, things they have said or done, how they write.
-At most 30 words per person. Keep old notes that still hold. Only include people whose notes changed.`;
-
 const updateSchema = z.object({
 	people: z.array(z.object({ userId: z.string(), notes: z.string() })),
 });
@@ -48,7 +44,11 @@ export async function maybeUpdateNotes(
 	history: ModelMessage[],
 ) {
 	const { channelId, guildId } = message;
-	const { model, profileUpdateEvery } = await getSettings(guildId, "chat");
+	const { model, profilesEnabled, profileUpdateEvery } = await getSettings(
+		guildId,
+		"chat",
+	);
+	if (!profilesEnabled) return;
 
 	const count = (repliesSinceUpdate.get(channelId) ?? 0) + 1;
 	repliesSinceUpdate.set(channelId, count);
@@ -63,7 +63,10 @@ export async function maybeUpdateNotes(
 	updating.add(channelId);
 
 	try {
-		const notes = await loadNotes(guildId, people);
+		const [notes, { profileInstructions }] = await Promise.all([
+			loadNotes(guildId, people),
+			getSettings(guildId, "personality"),
+		]);
 		const current = [...people]
 			.map(
 				([id, name]) => `${id} (${name}): ${notes.get(id) ?? "(no notes yet)"}`,
@@ -72,7 +75,7 @@ export async function maybeUpdateNotes(
 
 		const { output } = await generateText({
 			model: chatModel(model),
-			instructions: `${UPDATE_INSTRUCTIONS}\n\n## Current notes\n${current}`,
+			instructions: `${profileInstructions}\n\n## Current notes\n${current}`,
 			messages: history,
 			output: Output.object({ schema: updateSchema }),
 		});
