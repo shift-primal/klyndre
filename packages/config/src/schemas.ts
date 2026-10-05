@@ -19,6 +19,7 @@ export const chatSettings = z.object({
 	randomReplyChance: field(chance, d.chat.randomReplyChance),
 	historyLimit: field(z.int().min(1).max(100), d.chat.historyLimit),
 	maxImages: field(count, d.chat.maxImages),
+	profileUpdateEvery: field(z.int().min(1), d.chat.profileUpdateEvery),
 });
 
 export const channelsSettings = z.object({

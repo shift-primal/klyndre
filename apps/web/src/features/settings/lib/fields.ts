@@ -19,7 +19,6 @@ export type FieldSpec = {
 	integer?: boolean;
 };
 
-// the slice of a Zod schema we read; avoids depending on Zod's internal types
 type Node = {
 	def: { type: string };
 	unwrap?: () => Node;

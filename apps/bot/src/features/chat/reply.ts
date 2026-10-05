@@ -1,7 +1,6 @@
 import { getSettings } from "@klyndre/config";
 import { generateText, type ModelMessage } from "ai";
 import type { Message, MessageMentionOptions } from "discord.js";
-import type { ReplyReason } from "#/features/chat/handler";
 import { chatModel } from "#/features/chat/model";
 import { chunk } from "#/lib/utils/text";
 
@@ -24,7 +23,6 @@ const cleanReply = (message: Message<true>, text: string) => {
 
 export async function sendReply(
 	message: Message<true>,
-	reason: ReplyReason,
 	instructions: string,
 	history: ModelMessage[],
 ): Promise<void> {
@@ -47,14 +45,8 @@ export async function sendReply(
 		const reply = cleanReply(message, text);
 		if (!reply) return;
 
-		const [first = "", ...rest] = chunk(reply, DISCORD_MAX_LENGTH);
-		if (reason === "random") {
-			await message.channel.send({ content: first, allowedMentions });
-		} else {
-			await message.reply({ content: first, allowedMentions });
-		}
-		for (const part of rest) {
-			await message.channel.send({ content: part, allowedMentions });
+		for (const part of chunk(reply, DISCORD_MAX_LENGTH)) {
+			await message.reply({ content: part, allowedMentions });
 		}
 	} finally {
 		clearInterval(typing);

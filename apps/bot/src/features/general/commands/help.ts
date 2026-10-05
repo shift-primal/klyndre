@@ -1,4 +1,5 @@
 import type { Command } from "#/core/commands/types";
+import { chatCommands } from "#/features/chat/commands";
 import { generalCommands } from "#/features/general/commands";
 import { musicCommands } from "#/features/music/commands";
 import { formatArgument } from "#/lib/utils/text";
@@ -9,7 +10,7 @@ export const help: Command = {
 	description: "Show help and list available commands",
 	anyChannel: true,
 	async run(ctx) {
-		const allCommands = [...musicCommands, ...generalCommands];
+		const allCommands = [...musicCommands, ...chatCommands, ...generalCommands];
 		const lines = allCommands.map((cmd) => {
 			if (cmd.slashOnly) return `**/${cmd.name}**\n-# ${cmd.description}`;
 

@@ -1,8 +1,10 @@
 import { getSettings } from "@klyndre/config";
 import type { Message } from "discord.js";
 import { buildHistory } from "#/features/chat/history";
+import { maybeUpdateNotes } from "#/features/chat/profiles";
 import { buildInstructions } from "#/features/chat/prompt";
 import { sendReply } from "#/features/chat/reply";
+import { inTurn } from "#/features/chat/turns";
 
 export type ReplyReason = "mention" | "aiChannel" | "random";
 
@@ -37,13 +39,11 @@ export const handleMessage = async (message: Message) => {
 	const reason = await replyReason(message);
 	if (!reason) return;
 
-	try {
-		const [history, instructions] = await Promise.all([
-			buildHistory(message),
-			buildInstructions(message),
-		]);
-		await sendReply(message, reason, instructions, history);
-	} catch (error) {
-		console.error("[chat]", error);
-	}
+	await inTurn(message.channelId, async () => {
+		const { messages, people } = await buildHistory(message);
+		const instructions = await buildInstructions(message, people);
+		await sendReply(message, instructions, messages);
+
+		void maybeUpdateNotes(message, people, messages);
+	});
 };

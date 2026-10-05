@@ -9,6 +9,10 @@ export const defaults = {
 		),
 		historyLimit: meta(25, "Chat messages read before each reply"),
 		maxImages: meta(4, "Images sent to the model per reply"),
+		profileUpdateEvery: meta(
+			15,
+			"Replies in a channel between updates to its notes on people",
+		),
 	},
 	channels: {
 		aiChannelIds: meta(
