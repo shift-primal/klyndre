@@ -39,6 +39,10 @@ export async function replyReason(
 	return null;
 }
 
+// per channel, what its last reply read that came in after the message it answered.
+// answering those again just repeats that reply, so only a tag gets another one
+const alreadyRead = new Map<string, Set<string>>();
+
 export const handleMessage = async (message: Message) => {
 	if (!message.inGuild()) return;
 
@@ -47,7 +51,17 @@ export const handleMessage = async (message: Message) => {
 
 	const { turnWaitLimitMs } = await getSettings(message.guildId, "chat");
 	await inTurn(message.channelId, turnWaitLimitMs, async () => {
-		const { messages, people, humanText } = await buildHistory(message);
+		if (
+			reason !== "mention" &&
+			alreadyRead.get(message.channelId)?.has(message.id)
+		) {
+			console.log(
+				`[chat] skipped "${message.cleanContent}", the last reply read it`,
+			);
+			return;
+		}
+
+		const { messages, people, humanText, later } = await buildHistory(message);
 		const lore = await pickLore(message, humanText);
 		const { openerMemory, skipMaxWords } = await getSettings(
 			message.guildId,
@@ -70,6 +84,7 @@ export const handleMessage = async (message: Message) => {
 		void maybeUpdateNotes(message, people, messages);
 		if (!reply) return;
 
+		alreadyRead.set(message.channelId, new Set(later));
 		await noteUsage(message, lore.unprompted, reply);
 		void maybeUpdateLore(message, messages, reply);
 	});

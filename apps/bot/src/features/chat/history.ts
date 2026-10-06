@@ -1,6 +1,6 @@
 import { getSettings } from "@klyndre/config";
 import type { FilePart, ModelMessage } from "ai";
-import type { Message } from "discord.js";
+import { type Message, MessageReferenceType } from "discord.js";
 import type { People } from "#/features/chat/profiles";
 
 // the reset command replies with this, and history stops reading at it
@@ -23,16 +23,29 @@ const imagesOf = (msg: Message<true>): FilePart[] =>
 			}),
 		);
 
+// who a discord reply is aimed at, without it "du" is guesswork for the model
+const replyingTo = (
+	msg: Message<true>,
+	byId: ReadonlyMap<string, Message<true>>,
+	botId: string,
+) => {
+	if (msg.reference?.type !== MessageReferenceType.Default) return null;
+	const parent = byId.get(msg.reference.messageId ?? "");
+	if (!parent) return null;
+	return parent.author.id === botId ? "you" : nameOf(parent);
+};
+
 const toModelMessage = (
 	msg: Message<true>,
 	botId: string,
 	images: FilePart[],
+	speaker: string,
 	marker: string,
 ): ModelMessage => {
 	const text = msg.cleanContent.trim();
 	if (msg.author.id === botId) return { role: "assistant", content: text };
 
-	const line = [`${nameOf(msg)}: ${text}`, marker].filter(Boolean).join(" ");
+	const line = [`${speaker}: ${text}`, marker].filter(Boolean).join(" ");
 	if (images.length === 0) return { role: "user", content: line };
 
 	return { role: "user", content: [{ type: "text", text: line }, ...images] };
@@ -65,11 +78,17 @@ const replyChain = async (message: Message<true>, limit: number) => {
 
 export const buildHistory = async (
 	message: Message<true>,
-): Promise<{ messages: ModelMessage[]; people: People; humanText: string }> => {
+): Promise<{
+	messages: ModelMessage[];
+	people: People;
+	humanText: string;
+	// people's messages sent after this one that it read
+	later: string[];
+}> => {
 	const [
 		{ historyLimit, laterLimit, threadLimit, maxImages, imageMaxAgeMs },
 		{ prefix },
-		{ answeringMarker },
+		{ answeringMarker, replyLabel },
 	] = await Promise.all([
 		getSettings(message.guildId, "chat"),
 		getSettings(message.guildId, "commands"),
@@ -126,21 +145,29 @@ export const buildHistory = async (
 
 	// newer messages came in while it waited, so say which one it's answering
 	const piledUp = kept[0]?.msg !== message;
+	const speakerOf = (msg: Message<true>) => {
+		const target = replyLabel && replyingTo(msg, byId, botId);
+		return target
+			? `${nameOf(msg)} ${replyLabel.replaceAll("{name}", target)}`
+			: nameOf(msg);
+	};
 	const messages = kept
 		.map(({ msg, images }) =>
 			toModelMessage(
 				msg,
 				botId,
 				images,
+				speakerOf(msg),
 				piledUp && msg === message ? answeringMarker : "",
 			),
 		)
 		.reverse();
 
 	// what people said, without name prefixes, so a chatter's own name doesn't count
-	const humanText = kept
-		.filter(({ msg }) => !msg.author.bot)
-		.map(({ msg }) => msg.cleanContent)
-		.join("\n");
-	return { messages, people, humanText };
+	const human = kept.filter(({ msg }) => !msg.author.bot);
+	const humanText = human.map(({ msg }) => msg.cleanContent).join("\n");
+	const later = human
+		.filter(({ msg }) => msg.createdTimestamp > message.createdTimestamp)
+		.map(({ msg }) => msg.id);
+	return { messages, people, humanText, later };
 };

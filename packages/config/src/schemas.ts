@@ -81,6 +81,7 @@ export const personalitySettings = z.object({
 	fallbackReply: field(z.string(), d.personality.fallbackReply),
 	contentFilterReply: field(z.string(), d.personality.contentFilterReply),
 	answeringMarker: field(z.string(), d.personality.answeringMarker),
+	replyLabel: field(z.string(), d.personality.replyLabel),
 });
 
 export const commandsSettings = z.object({

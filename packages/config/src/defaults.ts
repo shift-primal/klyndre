@@ -201,6 +201,10 @@ Return only entries that are new or changed. If nothing is, return an empty list
 			"← you're replying to this one",
 			"Marks the message it's answering when newer ones came in while it waited (empty for no mark)",
 		),
+		replyLabel: meta(
+			"(replying to {name})",
+			'Goes after the name on a chat message that\'s a discord reply, so it knows who a message is aimed at ({name} is who it replies to, or "you" for the bot. Empty to leave it out)',
+		),
 	},
 	commands: {
 		prefix: meta("-", "Prefix for text commands"),

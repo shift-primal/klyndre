@@ -191,12 +191,10 @@ export async function sendReply(
 	history: ModelMessage[],
 	turn: Turn,
 ): Promise<string | null> {
-	await message.channel.sendTyping();
-
-	const typing = setInterval(
-		() => message.channel.sendTyping().catch(() => {}),
-		8_000,
-	);
+	// when it may stay quiet, typing first would give away a reply that never comes
+	const showTyping = () => message.channel.sendTyping().catch(() => {});
+	const typing = turn.canSkip ? undefined : setInterval(showTyping, 8_000);
+	if (!turn.canSkip) await showTyping();
 
 	try {
 		const {
