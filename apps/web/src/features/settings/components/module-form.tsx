@@ -16,7 +16,6 @@ type Props = {
 	onDirtyChange: (dirty: boolean) => void;
 };
 
-// tells the tabs whether this form has unsaved edits
 const DirtyReporter = ({
 	dirty,
 	onChange,

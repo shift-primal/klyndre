@@ -34,7 +34,6 @@ export interface Command {
 	arguments?: CommandArgument[];
 	slashOnly?: boolean;
 	anyChannel?: boolean;
-	// only the dev role (commands.devRoleId) and admins may run it
 	devOnly?: boolean;
 	run(ctx: CommandContext): Promise<void>;
 }

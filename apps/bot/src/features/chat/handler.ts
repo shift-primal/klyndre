@@ -8,7 +8,7 @@ import {
 	type Turn,
 } from "#/features/chat/openers";
 import { maybeUpdateNotes } from "#/features/chat/profiles";
-import { buildInstructions } from "#/features/chat/prompt";
+import { buildInstructions, chatContext } from "#/features/chat/prompt";
 import { sendReply } from "#/features/chat/reply";
 import { inTurn } from "#/features/chat/turns";
 
@@ -60,7 +60,11 @@ export const handleMessage = async (message: Message) => {
 				reason !== "mention" &&
 				mayStayQuiet(message.cleanContent, recent, skipMaxWords),
 		};
-		const instructions = await buildInstructions(message, people, lore);
+		const instructions = await buildInstructions(
+			chatContext(message),
+			people,
+			lore,
+		);
 		const reply = await sendReply(message, instructions, messages, turn);
 
 		void maybeUpdateNotes(message, people, messages);

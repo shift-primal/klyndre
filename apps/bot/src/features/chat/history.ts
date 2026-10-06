@@ -51,7 +51,6 @@ const belongsInChat = (
 	return answered !== undefined && !answered.content.startsWith(prefix);
 };
 
-// what the message replies to, and what that replies to, newest first
 const replyChain = async (message: Message<true>, limit: number) => {
 	const chain: Message<true>[] = [];
 	let current = message;

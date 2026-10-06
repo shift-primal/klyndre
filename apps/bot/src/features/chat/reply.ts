@@ -1,5 +1,5 @@
 import { getSettings } from "@klyndre/config";
-import { generateText, type ModelMessage } from "ai";
+import { type FinishReason, generateText, type ModelMessage } from "ai";
 import type { Message, MessageMentionOptions } from "discord.js";
 import { chatModel } from "#/features/chat/model";
 import {
@@ -8,6 +8,7 @@ import {
 	openerHabit,
 	type Turn,
 } from "#/features/chat/openers";
+import { type ChatContext, chatContext } from "#/features/chat/prompt";
 import { chunk } from "#/lib/utils/text";
 
 const DISCORD_MAX_LENGTH = 2000;
@@ -17,12 +18,10 @@ const allowedMentions: MessageMentionOptions = {
 	repliedUser: false,
 };
 
-const cleanReply = (message: Message<true>, text: string) => {
-	const name =
-		message.guild.members.me?.displayName ?? message.client.user.username;
+const cleanReply = (botName: string, text: string) => {
 	// grok sometimes leaks special tokens like <|eos|> into the text
 	const reply = text.replace(/<\|[\w-]+\|>/g, "").trim();
-	const prefix = `${name}:`;
+	const prefix = `${botName}:`;
 	return reply.toLowerCase().startsWith(prefix.toLowerCase())
 		? reply.slice(prefix.length).trim()
 		: reply;
@@ -59,18 +58,23 @@ export const withoutImages = (history: ModelMessage[]): ModelMessage[] =>
 			: msg,
 	);
 
+// overrides for trying things out, the live bot uses the guild settings as they are
+export type GenerateOptions = { model?: string; temperature?: number };
+
 async function generate(
 	guildId: string,
 	instructions: string,
 	history: ModelMessage[],
+	options: GenerateOptions,
 ) {
 	const { model, maxReplyTokens } = await getSettings(guildId, "chat");
 	const run = (messages: ModelMessage[]) =>
 		generateText({
-			model: chatModel(model),
+			model: chatModel(options.model ?? model),
 			instructions,
 			messages,
 			maxOutputTokens: maxReplyTokens,
+			temperature: options.temperature,
 		});
 
 	try {
@@ -98,12 +102,22 @@ const withNote = (history: ModelMessage[], note: string): ModelMessage[] => {
 	return [...history.slice(0, -1), { ...last, content }];
 };
 
-async function pickReply(
-	message: Message<true>,
+export type Composed = {
+	// what gets sent, empty when it stays quiet
+	text: string;
+	outcome: "reply" | "quiet" | "fallback" | "filtered";
+	// of the generation it came from, "length" means it hit the token cap
+	finishReason?: FinishReason;
+	retried: boolean;
+};
+
+export async function composeReply(
+	{ guildId, botName }: Pick<ChatContext, "guildId" | "botName">,
 	instructions: string,
 	history: ModelMessage[],
 	turn: Turn,
-) {
+	options: GenerateOptions = {},
+): Promise<Composed> {
 	const [
 		{
 			fallbackReply,
@@ -114,8 +128,8 @@ async function pickReply(
 		},
 		{ openerRepeatLimit },
 	] = await Promise.all([
-		getSettings(message.guildId, "personality"),
-		getSettings(message.guildId, "chat"),
+		getSettings(guildId, "personality"),
+		getSettings(guildId, "chat"),
 	]);
 	const habit = openerHabit(turn.recent, openerRepeatLimit);
 	const note = [
@@ -124,38 +138,50 @@ async function pickReply(
 	]
 		.filter(Boolean)
 		.join(" ");
+	const fallback = { text: fallbackReply, outcome: "fallback" } as const;
 
-	// null when the content filter stopped it
+	// text is null when the content filter stopped it
 	const attempt = async () => {
 		const { text, finishReason } = await generate(
-			message.guildId,
+			guildId,
 			instructions,
 			withNote(history, note),
+			options,
 		);
-		return finishReason === "content-filter" ? null : cleanReply(message, text);
+		return {
+			text:
+				finishReason === "content-filter" ? null : cleanReply(botName, text),
+			finishReason,
+		};
 	};
 
 	try {
-		let reply = await attempt();
-		if (reply === null) return contentFilterReply;
-
-		// one more try when it opens the way it keeps opening anyway
-		if (habit && firstWord(reply) === habit && !isSkip(reply, skipMarker)) {
-			console.log(`[chat] retrying a reply that opens with "${habit}" again`);
-			const retry = await attempt().catch(() => null);
-			if (retry) reply = retry;
+		const first = await attempt();
+		if (first.text === null) {
+			return { text: contentFilterReply, outcome: "filtered", retried: false };
 		}
+		let { text, finishReason } = first;
 
-		if (isSkip(reply, skipMarker)) {
-			if (!turn.canSkip) return fallbackReply;
-			console.log(`[chat] stayed quiet after "${message.cleanContent}"`);
-			return "";
+		const retried =
+			habit !== null && firstWord(text) === habit && !isSkip(text, skipMarker);
+		if (retried) {
+			const retry = await attempt().catch(() => null);
+			if (retry?.text) ({ text, finishReason } = retry);
+		}
+		const tried = { finishReason, retried };
+
+		if (!text) return { ...fallback, ...tried };
+		if (isSkip(text, skipMarker)) {
+			return turn.canSkip
+				? { text: "", outcome: "quiet", ...tried }
+				: { ...fallback, ...tried };
 		}
 		// an emoji-only reply styles down to nothing, which means stay quiet
-		return reply ? await styleReply(message.guildId, reply) : fallbackReply;
+		const styled = await styleReply(guildId, text);
+		return { text: styled, outcome: styled ? "reply" : "quiet", ...tried };
 	} catch (error) {
 		console.error("[chat]", error);
-		return fallbackReply;
+		return { ...fallback, retried: false };
 	}
 }
 
@@ -173,7 +199,16 @@ export async function sendReply(
 	);
 
 	try {
-		const reply = await pickReply(message, instructions, history, turn);
+		const {
+			text: reply,
+			outcome,
+			retried,
+		} = await composeReply(chatContext(message), instructions, history, turn);
+		if (retried)
+			console.log("[chat] retried a reply that opened the usual way");
+		if (outcome === "quiet") {
+			console.log(`[chat] stayed quiet after "${message.cleanContent}"`);
+		}
 		if (!reply) return null;
 
 		for (const part of chunk(reply, DISCORD_MAX_LENGTH)) {

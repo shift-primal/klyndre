@@ -13,6 +13,7 @@ import type { Message } from "discord.js";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { chatModel } from "#/features/chat/model";
+import { botNameOf } from "#/features/chat/prompt";
 import { withoutImages } from "#/features/chat/reply";
 import { words } from "#/lib/utils/text";
 
@@ -209,12 +210,10 @@ const updateSchema = z.object({
 });
 type Change = z.infer<typeof updateSchema>["changes"][number];
 
-// lowercase words only, so a quote matches however it was punctuated
 const phrase = (text: string) =>
 	(text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).join(" ");
 
-// self lore has to be quoted from the bot's own lines, so it can't take on someone else's life.
-// evidence can be a few quotes on separate lines, each has to be found
+// self lore must be quoted from the bot's own lines, so it can't take on someone else's life
 const backedUp = (
 	change: Change,
 	lines: { bot: string[]; all: string[] },
@@ -412,9 +411,7 @@ export async function maybeUpdateLore(
 			bot: chat.filter((msg) => msg.role === "assistant").map(textOf),
 			all: chat.map(textOf),
 		};
-		// a labelled transcript, so it can't mix up who said what
-		const botName =
-			message.guild.members.me?.displayName ?? message.client.user.username;
+		const botName = botNameOf(message);
 		const transcript = chat
 			.map((msg) =>
 				msg.role === "assistant"

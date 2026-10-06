@@ -19,9 +19,9 @@
 4. [x] answering marker: fetch history before the trigger message, mark it when newer messages piled up while queued · small
 5. [x] lore: db table, relevance pick for the prompt, update after replies, web page like profiles · medium
 6. [x] decide: bot's own made-up life (old lore.md + "meg") vs server topics/running jokes, or both with a kind column
-7. [ ] prod deploy (only docker-compose.dev.yml exists) · small-medium
+7. [x] prod deploy (only docker-compose.dev.yml exists) · small-medium
 8. [x] core/commands/guards.ts (dev role check, `devOnly` on a command) · small
-9. [ ] port scripts/test-prompt.ts for prompt testing outside discord · small-medium
+9. [x] port scripts/test-prompt.ts for prompt testing outside discord · small-medium
 10. [x] music: move / reorder queue · small
 11. [x] music: undo / restart last queue on accidental /stop · small-medium
 12. [x] /help pages per feature (-help music, -help chat) · small

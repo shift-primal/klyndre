@@ -1,6 +1,5 @@
 import type { ModelMessage } from "ai";
 
-// what a reply needs to know about the turn it's in
 export type Turn = {
 	// its own last replies in this channel, oldest first
 	recent: string[];
@@ -22,7 +21,6 @@ export const recentReplies = (history: ModelMessage[], count: number) =>
 				)
 				.slice(-count);
 
-// the word its recent replies keep starting with, when at least `limit` of them do
 export const openerHabit = (recent: string[], limit: number) => {
 	if (limit === 0) return null;
 	const counts = new Map<string, number>();

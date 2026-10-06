@@ -33,8 +33,26 @@ const describePeople = (people: People, notes: Map<string, string>) =>
 const describeLore = (entries: LoreEntry[]) =>
 	entries.map((entry) => `- ${entry.key}: ${entry.notes}`).join("\n");
 
+export const botNameOf = (message: Message<true>) =>
+	message.guild.members.me?.displayName ?? message.client.user.username;
+
+// where the reply goes, without discord, so scripts can build the same prompt
+export type ChatContext = {
+	guildId: string;
+	botName: string;
+	server: string;
+	channel: string;
+};
+
+export const chatContext = (message: Message<true>): ChatContext => ({
+	guildId: message.guildId,
+	botName: botNameOf(message),
+	server: message.guild.name,
+	channel: message.channel.name,
+});
+
 const buildParts = async (
-	message: Message<true>,
+	{ guildId, botName, server, channel }: ChatContext,
 	people: People,
 	lore: SelectedLore,
 ): Promise<PromptParts> => {
@@ -49,14 +67,12 @@ const buildParts = async (
 		},
 		{ timeZone, profilesEnabled },
 	] = await Promise.all([
-		getSettings(message.guildId, "personality"),
-		getSettings(message.guildId, "chat"),
+		getSettings(guildId, "personality"),
+		getSettings(guildId, "chat"),
 	]);
 	const notes = profilesEnabled
-		? await loadNotes(message.guildId, people)
+		? await loadNotes(guildId, people)
 		: new Map<string, string>();
-	const botName =
-		message.guild.members.me?.displayName ?? message.client.user.username;
 
 	return {
 		persona: persona || `You are ${botName}, a member of this Discord server.`,
@@ -71,14 +87,13 @@ const buildParts = async (
 		serverLoreGuidance,
 		context: {
 			botName,
-			server: message.guild.name,
-			channel: message.channel.name,
+			server,
+			channel,
 			now: new Date().toLocaleDateString("en-GB", { timeZone }),
 		},
 	};
 };
 
-// left out entirely when there's nothing to list
 const section = (title: string, guidance: string, body: string) =>
 	body && `## ${title}\n${[guidance, body].filter(Boolean).join("\n\n")}`;
 
@@ -109,7 +124,7 @@ Current time: ${context.now}.`,
 		.join("\n\n");
 
 export const buildInstructions = async (
-	message: Message<true>,
+	context: ChatContext,
 	people: People,
 	lore: SelectedLore,
-) => render(await buildParts(message, people, lore));
+) => render(await buildParts(context, people, lore));

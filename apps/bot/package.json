@@ -10,6 +10,7 @@
 		"dev": "tsx watch src/index.ts",
 		"register": "tsx src/scripts/register.ts",
 		"set:secret": "tsx src/scripts/set-secret.ts",
+		"test:prompt": "tsx src/scripts/test-prompt.ts",
 		"typecheck": "tsc --noEmit"
 	},
 	"devDependencies": {

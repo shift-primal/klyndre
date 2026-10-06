@@ -17,7 +17,6 @@ async function devRefusal(ctx: CommandContext) {
 		: "Only admins can use that.";
 }
 
-// why the command can't run for this member, or null when it can
 export async function refusal(
 	command: Command,
 	ctx: CommandContext,
