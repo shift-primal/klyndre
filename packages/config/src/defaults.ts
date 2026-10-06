@@ -56,6 +56,10 @@ export const defaults = {
 			4,
 			"Longest message (in words) it may stay quiet after, longer ones always get an answer. It also always answers right after asking something (0 to never stay quiet)",
 		),
+		quietTypingMs: meta(
+			1_500,
+			"When it could have stayed quiet, it only starts typing once it knows it's answering, and types this long before sending (0 to send right away)",
+		),
 		loreEnabled: meta(
 			true,
 			"Keep lore (its own life and the server's running jokes) and show it to the model",

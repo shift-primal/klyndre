@@ -43,6 +43,7 @@ export const chatSettings = z.object({
 	openerMemory: field(z.int().min(0).max(20), d.chat.openerMemory),
 	openerRepeatLimit: field(count, d.chat.openerRepeatLimit),
 	skipMaxWords: field(z.int().min(0).max(50), d.chat.skipMaxWords),
+	quietTypingMs: field(z.int().min(0).max(10_000), d.chat.quietTypingMs),
 	loreEnabled: field(z.boolean(), d.chat.loreEnabled),
 	loreShown: field(z.int().min(0).max(30), d.chat.loreShown),
 	loreRandomFill: field(z.int().min(0).max(10), d.chat.loreRandomFill),

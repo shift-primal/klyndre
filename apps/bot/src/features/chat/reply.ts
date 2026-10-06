@@ -1,3 +1,4 @@
+import { setTimeout as sleep } from "node:timers/promises";
 import { getSettings } from "@klyndre/config";
 import { type FinishReason, generateText, type ModelMessage } from "ai";
 import type { Message, MessageMentionOptions } from "discord.js";
@@ -191,7 +192,8 @@ export async function sendReply(
 	history: ModelMessage[],
 	turn: Turn,
 ): Promise<string | null> {
-	// when it may stay quiet, typing first would give away a reply that never comes
+	// when it may stay quiet, typing first would give away a reply that never comes,
+	// so it only types once it knows it's answering
 	const showTyping = () => message.channel.sendTyping().catch(() => {});
 	const typing = turn.canSkip ? undefined : setInterval(showTyping, 8_000);
 	if (!turn.canSkip) await showTyping();
@@ -208,6 +210,14 @@ export async function sendReply(
 			console.log(`[chat] stayed quiet after "${message.cleanContent}"`);
 		}
 		if (!reply) return null;
+
+		if (turn.canSkip) {
+			const { quietTypingMs } = await getSettings(message.guildId, "chat");
+			if (quietTypingMs > 0) {
+				await showTyping();
+				await sleep(quietTypingMs);
+			}
+		}
 
 		for (const part of chunk(reply, DISCORD_MAX_LENGTH)) {
 			await message.reply({ content: part, allowedMentions });
