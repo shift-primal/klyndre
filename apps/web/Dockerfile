@@ -1,4 +1,4 @@
-FROM node:26-slim AS build
+FROM node:26-slim
 
 RUN npm install -g pnpm@12.8.1
 
@@ -16,10 +16,8 @@ COPY packages/config ./packages/config
 COPY apps/web ./apps/web
 RUN pnpm --filter @klyndre/web build
 
-FROM node:26-slim
-
-WORKDIR /app
-COPY --from=build /app/apps/web/.output ./.output
+# Single stage so `pnpm create:user` can run from a shell in this container
+WORKDIR /app/apps/web
 
 ENV NODE_ENV=production
 ENV PORT=3000
