@@ -10,6 +10,7 @@ import {
 	loadCookies,
 	youtubeOptions,
 } from "#/features/music/extractors/youtube";
+import { registerLagLog } from "#/features/music/lag";
 import { registerQueueSaving } from "#/features/music/saved-queues";
 import { registerMusicButtons } from "#/features/music/ui/interactions";
 
@@ -19,8 +20,9 @@ export async function setupPlayer(client: Client) {
 	const player = new Player(client);
 	cookies = await loadCookies();
 
-	await player.extractors.register(CustomSpotifyExtractor, {});
-	await player.extractors.register(YoutubeExtractor, youtubeOptions(cookies));
+	const spotify = await player.extractors.register(CustomSpotifyExtractor, {});
+	if (spotify) spotify.priority = 3;
+	await registerYoutube(player);
 	await player.extractors.loadMulti(
 		DefaultExtractors.filter((extractor) => extractor !== SpotifyExtractor),
 	);
@@ -28,6 +30,7 @@ export async function setupPlayer(client: Client) {
 	registerAnnouncements(player);
 	registerQueueSaving(player);
 	registerMusicButtons(client);
+	registerLagLog(player);
 
 	if (env.DEBUG_PLAYER) {
 		player.events.on("debug", (_queue, message) =>
@@ -44,8 +47,19 @@ async function reloadYoutubeCookies() {
 	if (latest === cookies) return;
 	cookies = latest;
 
-	const { extractors } = useMainPlayer();
-	await extractors.unregister(YoutubeExtractor.identifier);
-	await extractors.register(YoutubeExtractor, youtubeOptions(cookies));
+	const player = useMainPlayer();
+	await player.extractors.unregister(YoutubeExtractor.identifier);
+	await registerYoutube(player);
 	console.log("[music] Reloaded the YouTube cookies");
+}
+
+// extractors run by priority, then registration order: spotify searches first,
+// then youtube, then the defaults. Explicit so a re-registered youtube keeps its
+// place instead of bridging spotify tracks after soundcloud
+async function registerYoutube(player: Player) {
+	const youtube = await player.extractors.register(
+		YoutubeExtractor,
+		youtubeOptions(cookies),
+	);
+	if (youtube) youtube.priority = 2;
 }

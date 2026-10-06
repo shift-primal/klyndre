@@ -10,6 +10,7 @@ RUN npm install -g pnpm@12.8.1
 WORKDIR /app
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY patches ./patches
 COPY apps/bot/package.json ./apps/bot/
 COPY packages/config/package.json ./packages/config/
 COPY packages/db/package.json ./packages/db/

@@ -162,6 +162,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+patchedDependencies:
+  discord-player-youtubei@3.1.0: 4a68d7c7e82c9b15ea30b73cbc71f248ec42a5be80c1a477b1ac36b8e84887e3
+
 importers:
 
   .:
@@ -207,7 +210,7 @@ importers:
         version: 7.2.0(@discord-player/extractor@7.2.0)(jiti@2.7.0)(mediaplex@1.0.0)(postcss@8.5.28)(tsx@4.23.15)
       discord-player-youtubei:
         specifier: ^3.1.0
-        version: 3.1.0(bgutils-js@4.0.3)(googlevideo@4.1.1)
+        version: 3.1.0(patch_hash=4a68d7c7e82c9b15ea30b73cbc71f248ec42a5be80c1a477b1ac36b8e84887e3)(bgutils-js@4.0.3)(googlevideo@4.1.1)
       discord.js:
         specifier: ^14.27.0
         version: 14.27.0
@@ -8334,7 +8337,7 @@ snapshots:
 
   discord-api-types@0.38.56: {}
 
-  discord-player-youtubei@3.1.0(bgutils-js@4.0.3)(googlevideo@4.1.1):
+  discord-player-youtubei@3.1.0(patch_hash=4a68d7c7e82c9b15ea30b73cbc71f248ec42a5be80c1a477b1ac36b8e84887e3)(bgutils-js@4.0.3)(googlevideo@4.1.1):
     dependencies:
       bgutils-js: 4.0.3
       googlevideo: 4.1.1

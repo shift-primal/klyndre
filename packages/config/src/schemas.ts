@@ -99,6 +99,7 @@ export const musicSettings = z.object({
 	restoreWindowMs: field(count, d.music.restoreWindowMs),
 	maxTrackRetries: field(count, d.music.maxTrackRetries),
 	queuePageSize: field(z.int().min(1).max(25), d.music.queuePageSize),
+	lagLogMs: field(count, d.music.lagLogMs),
 });
 
 export const moduleSchemas = {

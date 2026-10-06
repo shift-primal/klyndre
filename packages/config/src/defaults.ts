@@ -233,5 +233,9 @@ Return only entries that are new or changed. If nothing is, return an empty list
 		),
 		maxTrackRetries: meta(1, "Retries for a track that fails to play"),
 		queuePageSize: meta(10, "Tracks per page in the queue view"),
+		lagLogMs: meta(
+			100,
+			"Log to the bot console when it freezes this long while playing, which makes the music stutter (0 = off)",
+		),
 	},
 };

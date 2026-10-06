@@ -33,7 +33,10 @@ export function youtubeOptions(cookies: string): YoutubeOptions {
 	return {
 		cookie: hasCookies ? cookieHeader(cookies) : undefined,
 		downloads: {
-			trialOrder: ["yt-dlp", "adaptive", "sabr"],
+			// adaptive streams in-process (~1s to audio); yt-dlp spawns python per
+			// track (~2.5s) and returns before it succeeds, so a failed run never
+			// falls through. Keep it as the fallback.
+			trialOrder: ["adaptive", "yt-dlp", "sabr"],
 			ytdlp: { cookiePath: hasCookies ? COOKIE_COPY : undefined },
 		},
 	};
