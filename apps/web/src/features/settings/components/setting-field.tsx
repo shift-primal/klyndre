@@ -13,7 +13,7 @@ import { PresetBar } from "#/features/prompts/components/preset-bar";
 import { isPromptKind } from "#/features/prompts/lib/prompt-kinds";
 import { ChannelPicker } from "#/features/settings/components/channel-picker";
 import { RolePicker } from "#/features/settings/components/role-picker";
-import type { FieldSpec } from "#/features/settings/lib/fields";
+import { type FieldSpec, sameValue } from "#/features/settings/lib/fields";
 
 type Props = {
 	spec: FieldSpec;
@@ -27,9 +27,6 @@ type Props = {
 	channels: ChannelOption[];
 	roles: RoleOption[];
 };
-
-const sameValue = (a: unknown, b: unknown) =>
-	JSON.stringify(a) === JSON.stringify(b);
 
 const Control = ({
 	spec,

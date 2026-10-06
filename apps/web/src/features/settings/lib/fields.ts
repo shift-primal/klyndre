@@ -17,12 +17,15 @@ export type FieldSpec = {
 	min?: number;
 	max?: number;
 	integer?: boolean;
+	advanced: boolean;
 };
 
 type Node = {
 	def: { type: string };
 	unwrap?: () => Node;
-	meta(): { description?: string; widget?: string } | undefined;
+	meta():
+		| { description?: string; widget?: string; advanced?: boolean }
+		| undefined;
 	minValue?: number | null;
 	maxValue?: number | null;
 	isInt?: boolean;
@@ -75,8 +78,12 @@ export const fieldsFor = (module: ModuleName): FieldSpec[] =>
 			min: bound(inner.minValue),
 			max: bound(inner.maxValue),
 			integer: inner.isInt,
+			advanced: meta?.advanced ?? false,
 		};
 	});
+
+export const sameValue = (a: unknown, b: unknown) =>
+	JSON.stringify(a) === JSON.stringify(b);
 
 export const defaultsFor = (module: ModuleName) =>
 	moduleSchemas[module].parse({}) as Record<string, unknown>;

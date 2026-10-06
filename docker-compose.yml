@@ -15,9 +15,8 @@ services:
       retries: 10
 
   migrate:
-    build:
-      context: .
-      dockerfile: packages/db/Dockerfile
+    image: ghcr.io/shift-primal/klyndre-migrate:latest
+    pull_policy: always
     restart: "no"
     exclude_from_hc: true
     depends_on:
@@ -27,9 +26,8 @@ services:
       DATABASE_URL: postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@db:5432/${POSTGRES_DB:-klyndre}
 
   bot:
-    build:
-      context: .
-      dockerfile: apps/bot/Dockerfile
+    image: ghcr.io/shift-primal/klyndre-bot:latest
+    pull_policy: always
     restart: unless-stopped
     depends_on:
       migrate:
@@ -44,9 +42,8 @@ services:
       DATABASE_URL: postgres://${SERVICE_USER_POSTGRES}:${SERVICE_PASSWORD_POSTGRES}@db:5432/${POSTGRES_DB:-klyndre}
 
   web:
-    build:
-      context: .
-      dockerfile: apps/web/Dockerfile
+    image: ghcr.io/shift-primal/klyndre-web:latest
+    pull_policy: always
     restart: unless-stopped
     depends_on:
       migrate:

@@ -1,13 +1,24 @@
 import { type ModuleName, moduleSchemas } from "@klyndre/config/schemas";
 import { useForm } from "@tanstack/react-form";
+import { ChevronRight } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { Button } from "#/components/ui/button";
+import {
+	Collapsible,
+	CollapsibleContent,
+	CollapsibleTrigger,
+} from "#/components/ui/collapsible";
 import { FieldGroup } from "#/components/ui/field";
 import { useGuildOptions } from "#/features/guilds/hooks/use-guild-options";
 import { SettingField } from "#/features/settings/components/setting-field";
 import { useGuildSettings } from "#/features/settings/hooks/use-guild-settings";
 import { useSaveSettings } from "#/features/settings/hooks/use-save-settings";
-import { defaultsFor, fieldsFor } from "#/features/settings/lib/fields";
+import {
+	defaultsFor,
+	type FieldSpec,
+	fieldsFor,
+	sameValue,
+} from "#/features/settings/lib/fields";
 
 type Props = {
 	guildId: string;
@@ -43,6 +54,8 @@ export const ModuleForm = ({
 	const { data: options } = useGuildOptions(guildId);
 	const save = useSaveSettings(guildId, module);
 	const fields = fieldsFor(module);
+	const tunables = fields.filter((spec) => !spec.advanced);
+	const advanced = fields.filter((spec) => spec.advanced);
 	const defaults = defaultsFor(module);
 
 	const form = useForm({
@@ -53,6 +66,29 @@ export const ModuleForm = ({
 			formApi.reset(saved as Record<string, unknown>);
 		},
 	});
+
+	const renderField = (spec: FieldSpec) => (
+		<form.Field key={spec.key} name={spec.key}>
+			{(field) => (
+				<SettingField
+					spec={spec}
+					value={field.state.value}
+					defaultValue={defaults[spec.key]}
+					onChange={field.handleChange}
+					onBlur={field.handleBlur}
+					invalid={field.state.meta.isTouched && !field.state.meta.isValid}
+					errors={
+						field.state.meta.errors as unknown as Array<{
+							message?: string;
+						}>
+					}
+					disabled={readOnly}
+					channels={options.channels}
+					roles={options.roles}
+				/>
+			)}
+		</form.Field>
+	);
 
 	return (
 		<form
@@ -66,32 +102,48 @@ export const ModuleForm = ({
 			<form.Subscribe selector={(state) => state.isDirty}>
 				{(dirty) => <DirtyReporter dirty={dirty} onChange={onDirtyChange} />}
 			</form.Subscribe>
-			<FieldGroup>
-				{fields.map((spec) => (
-					<form.Field key={spec.key} name={spec.key}>
-						{(field) => (
-							<SettingField
-								spec={spec}
-								value={field.state.value}
-								defaultValue={defaults[spec.key]}
-								onChange={field.handleChange}
-								onBlur={field.handleBlur}
-								invalid={
-									field.state.meta.isTouched && !field.state.meta.isValid
+			<FieldGroup>{tunables.map(renderField)}</FieldGroup>
+
+			{advanced.length > 0 && (
+				<div className="border-t pt-4">
+					<Collapsible>
+						<CollapsibleTrigger
+							render={
+								<Button
+									type="button"
+									variant="ghost"
+									size="sm"
+									className="group -ml-2"
+								/>
+							}
+						>
+							<ChevronRight className="transition-transform group-data-[panel-open]:rotate-90" />
+							Advanced
+							<form.Subscribe
+								selector={(state) =>
+									advanced.filter(
+										(spec) =>
+											!sameValue(state.values[spec.key], defaults[spec.key]),
+									).length
 								}
-								errors={
-									field.state.meta.errors as unknown as Array<{
-										message?: string;
-									}>
+							>
+								{(changed) =>
+									changed > 0 && (
+										<span className="text-muted-foreground">
+											({changed} changed)
+										</span>
+									)
 								}
-								disabled={readOnly}
-								channels={options.channels}
-								roles={options.roles}
-							/>
-						)}
-					</form.Field>
-				))}
-			</FieldGroup>
+							</form.Subscribe>
+						</CollapsibleTrigger>
+						<CollapsibleContent keepMounted>
+							<div className="pt-5">
+								<FieldGroup>{advanced.map(renderField)}</FieldGroup>
+							</div>
+						</CollapsibleContent>
+					</Collapsible>
+				</div>
+			)}
 
 			{readOnly ? (
 				<p className="text-sm text-muted-foreground">

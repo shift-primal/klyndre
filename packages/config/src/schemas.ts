@@ -8,6 +8,7 @@ const field = <T extends z.ZodType>(type: T, m: Meta<z.output<T>>) =>
 	type.default(m.default as never).meta({
 		description: m.description,
 		...(m.widget && { widget: m.widget }),
+		...(m.advanced && { advanced: true }),
 	});
 
 const chance = z.number().min(0).max(1);
