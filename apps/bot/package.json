@@ -6,6 +6,7 @@
 		"#/*": "./src/*"
 	},
 	"scripts": {
+		"start": "tsx src/index.ts",
 		"dev": "tsx watch src/index.ts",
 		"register": "tsx src/scripts/register.ts",
 		"set:secret": "tsx src/scripts/set-secret.ts",

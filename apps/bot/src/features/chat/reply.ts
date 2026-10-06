@@ -146,7 +146,11 @@ async function pickReply(
 			if (retry) reply = retry;
 		}
 
-		if (isSkip(reply, skipMarker)) return turn.canSkip ? "" : fallbackReply;
+		if (isSkip(reply, skipMarker)) {
+			if (!turn.canSkip) return fallbackReply;
+			console.log(`[chat] stayed quiet after "${message.cleanContent}"`);
+			return "";
+		}
 		// an emoji-only reply styles down to nothing, which means stay quiet
 		return reply ? await styleReply(message.guildId, reply) : fallbackReply;
 	} catch (error) {

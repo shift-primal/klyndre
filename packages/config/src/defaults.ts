@@ -52,6 +52,10 @@ export const defaults = {
 			2,
 			"Warn it when this many of its recent replies started with the same word, and try once more if it does it again (0 to never)",
 		),
+		skipMaxWords: meta(
+			4,
+			"Longest message (in words) it may stay quiet after, longer ones always get an answer. It also always answers right after asking something (0 to never stay quiet)",
+		),
 		loreEnabled: meta(
 			true,
 			"Keep lore (its own life and the server's running jokes) and show it to the model",
@@ -177,7 +181,7 @@ Return only entries that are new or changed. If nothing is, return an empty list
 			"textarea",
 		),
 		skipNote: meta(
-			`if there's nothing worth saying (the chat is winding down, it's just ok, sure or ye, or a goodbye you already answered), reply with only {marker}`,
+			`if the chat is clearly over (it's just ok, sure or ye, or a goodbye you already answered), reply with only {marker}. if someone answers you or tells you something, reply normally.`,
 			"Note added after the last message saying when it may stay quiet ({marker} is the skip marker). Only added when it wasn't tagged",
 			"textarea",
 		),

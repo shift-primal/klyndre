@@ -9,7 +9,9 @@
 		"db:down": "docker compose -f docker-compose.dev.yml down",
 		"db:push": "pnpm --filter @klyndre/db push",
 		"bot:register": "pnpm --filter @klyndre/bot register",
-		"typecheck": "pnpm -r typecheck"
+		"typecheck": "pnpm -r typecheck",
+		"db:generate": "pnpm --filter @klyndre/db generate",
+		"db:migrate": "pnpm --filter @klyndre/db migrate"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.5.14",
