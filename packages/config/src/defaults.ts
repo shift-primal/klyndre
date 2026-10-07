@@ -7,6 +7,10 @@ export const defaults = {
 			0.25,
 			"Chance of butting in on a message in a random-reply channel without being tagged",
 		),
+		replyToMentionsAnywhere: meta(
+			true,
+			"Answer when tagged in any channel. Off, it only answers tags inside AI channels",
+		),
 		historyLimit: meta(
 			25,
 			"Chat messages read from before the one it's answering",

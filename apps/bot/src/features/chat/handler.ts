@@ -24,12 +24,18 @@ export async function replyReason(
 	if (message.content.startsWith(prefix)) return null;
 
 	const me = message.client.user;
+	const channels = await getSettings(message.guildId, "channels");
+	const inAiChannel = channels.aiChannelIds.includes(message.channelId);
+
 	if (message.mentions.has(me, { ignoreEveryone: true, ignoreRoles: true })) {
-		return "mention";
+		const { replyToMentionsAnywhere } = await getSettings(
+			message.guildId,
+			"chat",
+		);
+		if (replyToMentionsAnywhere || inAiChannel) return "mention";
 	}
 
-	const channels = await getSettings(message.guildId, "channels");
-	if (channels.aiChannelIds.includes(message.channelId)) return "aiChannel";
+	if (inAiChannel) return "aiChannel";
 
 	if (channels.randomReplyChannelIds.includes(message.channelId)) {
 		const { randomReplyChance } = await getSettings(message.guildId, "chat");
