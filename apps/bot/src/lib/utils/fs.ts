@@ -15,4 +15,3 @@ function findRoot(startDir: string): string {
 const ROOT = findRoot(import.meta.dirname);
 
 export const rootPath = (path: string) => resolve(ROOT, path);
-

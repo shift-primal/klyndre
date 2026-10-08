@@ -83,6 +83,7 @@ export const personalitySettings = z.object({
 	skipMarker: field(z.string(), d.personality.skipMarker),
 	fallbackReply: field(z.string(), d.personality.fallbackReply),
 	contentFilterReply: field(z.string(), d.personality.contentFilterReply),
+	notHereReply: field(z.string(), d.personality.notHereReply),
 	answeringMarker: field(z.string(), d.personality.answeringMarker),
 	replyLabel: field(z.string(), d.personality.replyLabel),
 });

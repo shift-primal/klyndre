@@ -12,7 +12,8 @@ import { buildInstructions, chatContext } from "#/features/chat/prompt";
 import { sendReply } from "#/features/chat/reply";
 import { inTurn } from "#/features/chat/turns";
 
-type ReplyReason = "mention" | "aiChannel" | "random";
+// notHere: tagged in a channel it never talks in, with replies to tags anywhere off
+type ReplyReason = "mention" | "aiChannel" | "random" | "notHere";
 
 // typing @bot often picks the bot's own role (same name) from the suggestions,
 // which isn't a user mention
@@ -37,7 +38,8 @@ async function replyReason(
 	const channels = await getSettings(message.guildId, "channels");
 	const inAiChannel = channels.aiChannelIds.includes(message.channelId);
 
-	if (isTagged(message)) {
+	const tagged = isTagged(message);
+	if (tagged) {
 		const { replyToMentionsAnywhere } = await getSettings(
 			message.guildId,
 			"chat",
@@ -49,10 +51,10 @@ async function replyReason(
 
 	if (channels.randomReplyChannelIds.includes(message.channelId)) {
 		const { randomReplyChance } = await getSettings(message.guildId, "chat");
-		if (Math.random() < randomReplyChance) return "random";
+		return Math.random() < randomReplyChance ? "random" : null;
 	}
 
-	return null;
+	return tagged ? "notHere" : null;
 }
 
 // per channel, what its last reply read that came in after the message it answered.
@@ -64,6 +66,12 @@ export const handleMessage = async (message: Message) => {
 
 	const reason = await replyReason(message);
 	if (!reason) return;
+
+	if (reason === "notHere") {
+		const { notHereReply } = await getSettings(message.guildId, "personality");
+		if (notHereReply) await message.reply(notHereReply);
+		return;
+	}
 
 	const { turnWaitLimitMs } = await getSettings(message.guildId, "chat");
 	await inTurn(message.channelId, turnWaitLimitMs, async () => {

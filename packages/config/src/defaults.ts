@@ -214,6 +214,10 @@ Return only entries that are new or changed. If nothing is, return an empty list
 			"Nah, can't help with that one.",
 			"Sent when the model refuses (empty to stay quiet)",
 		),
+		notHereReply: meta(
+			"can't talk in here, find me in an ai channel",
+			"Sent when it's tagged in a channel it doesn't talk in, with replies to tags anywhere off (empty to stay quiet)",
+		),
 		answeringMarker: advanced(
 			"← you're replying to this one",
 			"Marks the message it's answering when newer ones came in while it waited (empty for no mark)",
