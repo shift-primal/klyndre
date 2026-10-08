@@ -3,7 +3,7 @@ import { type GuildMember, PermissionFlagsBits } from "discord.js";
 import type { Command, CommandContext } from "#/core/commands/types";
 
 // admins always count, so dev commands still work before a dev role is set
-export async function isDev(member: GuildMember) {
+async function isDev(member: GuildMember) {
 	if (member.permissions.has(PermissionFlagsBits.Administrator)) return true;
 	const { devRoleId } = await getSettings(member.guild.id, "commands");
 	return devRoleId !== null && member.roles.cache.has(devRoleId);

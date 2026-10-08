@@ -271,7 +271,7 @@ const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 const label = (kind: LoreKind, key: string) => `${kind}/${key}`;
 
 // returns log lines, printed only once the transaction commits
-export const applyChanges = (
+const applyChanges = (
 	guildId: string,
 	changes: Change[],
 	settings: ChatSettings,

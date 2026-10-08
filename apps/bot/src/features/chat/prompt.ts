@@ -4,7 +4,7 @@ import type { Message } from "discord.js";
 import type { SelectedLore } from "#/features/chat/lore";
 import { loadNotes, type People } from "#/features/chat/profiles";
 
-export interface PromptParts {
+interface PromptParts {
 	persona: string;
 	rules: string;
 	format: string;

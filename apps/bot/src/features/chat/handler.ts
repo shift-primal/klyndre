@@ -12,9 +12,20 @@ import { buildInstructions, chatContext } from "#/features/chat/prompt";
 import { sendReply } from "#/features/chat/reply";
 import { inTurn } from "#/features/chat/turns";
 
-export type ReplyReason = "mention" | "aiChannel" | "random";
+type ReplyReason = "mention" | "aiChannel" | "random";
 
-export async function replyReason(
+// typing @bot often picks the bot's own role (same name) from the suggestions,
+// which isn't a user mention
+function isTagged(message: Message<true>) {
+	const me = message.client.user;
+	if (message.mentions.has(me, { ignoreEveryone: true, ignoreRoles: true })) {
+		return true;
+	}
+	const botRole = message.guild.members.me?.roles.botRole;
+	return Boolean(botRole && message.mentions.roles.has(botRole.id));
+}
+
+async function replyReason(
 	message: Message<true>,
 ): Promise<ReplyReason | null> {
 	if (message.author.bot) return null;
@@ -23,11 +34,10 @@ export async function replyReason(
 	const { prefix } = await getSettings(message.guildId, "commands");
 	if (message.content.startsWith(prefix)) return null;
 
-	const me = message.client.user;
 	const channels = await getSettings(message.guildId, "channels");
 	const inAiChannel = channels.aiChannelIds.includes(message.channelId);
 
-	if (message.mentions.has(me, { ignoreEveryone: true, ignoreRoles: true })) {
+	if (isTagged(message)) {
 		const { replyToMentionsAnywhere } = await getSettings(
 			message.guildId,
 			"chat",

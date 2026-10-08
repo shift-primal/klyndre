@@ -60,7 +60,7 @@ export const withoutImages = (history: ModelMessage[]): ModelMessage[] =>
 	);
 
 // overrides for trying things out, the live bot uses the guild settings as they are
-export type GenerateOptions = { model?: string; temperature?: number };
+type GenerateOptions = { model?: string; temperature?: number };
 
 async function generate(
 	guildId: string,

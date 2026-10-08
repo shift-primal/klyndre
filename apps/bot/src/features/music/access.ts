@@ -4,7 +4,7 @@ import { type GuildQueue, type Track, useQueue } from "discord-player";
 import type { Command, CommandContext } from "#/core/commands/types";
 import { findTrack } from "#/features/music/find-track";
 
-export type ActiveQueue = GuildQueue & { currentTrack: Track };
+type ActiveQueue = GuildQueue & { currentTrack: Track };
 
 export const refuse = (ctx: CommandContext, message: string) =>
 	ctx.reply(message, { ephemeral: true });

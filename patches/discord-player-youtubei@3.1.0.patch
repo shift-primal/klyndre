@@ -2,15 +2,6 @@ diff --git a/dist/index.cjs b/dist/index.cjs
 index 5636310421ab08046e94bd9c7f2b338a663d99b6..15d2ac8d8c90db72cb027c96d6184ba2eb04973f 100644
 --- a/dist/index.cjs
 +++ b/dist/index.cjs
-@@ -321,7 +321,7 @@ async function createYoutubeDlStream(track, ext) {
- 		cookies: ext.options.downloads?.ytdlp?.cookiePath
- 	});
- 	dl.catch((e) => {
--		throw new YtDLPError(YTDLPErrorType.UNKNOWN, e);
-+		if (!dl.killed) dl.stdout?.destroy(new YtDLPError(YTDLPErrorType.UNKNOWN, e));
- 	});
- 	const stream = dl.stdout;
- 	if (!stream) throw new YtDLPError(YTDLPErrorType.NO_STREAM, "No streams were detected through yt-dlp.");
 @@ -444,6 +444,7 @@ var YoutubeExtractor = class extends discord_player.BaseExtractor {
  		}
  	}
@@ -23,15 +14,6 @@ diff --git a/dist/index.mjs b/dist/index.mjs
 index 7982bb477b68b080e7e0d305ec9a9e129fb29843..4af68a162d209361a03697aeab47a4ee668f612a 100644
 --- a/dist/index.mjs
 +++ b/dist/index.mjs
-@@ -297,7 +297,7 @@ async function createYoutubeDlStream(track, ext) {
- 		cookies: ext.options.downloads?.ytdlp?.cookiePath
- 	});
- 	dl.catch((e) => {
--		throw new YtDLPError(YTDLPErrorType.UNKNOWN, e);
-+		if (!dl.killed) dl.stdout?.destroy(new YtDLPError(YTDLPErrorType.UNKNOWN, e));
- 	});
- 	const stream = dl.stdout;
- 	if (!stream) throw new YtDLPError(YTDLPErrorType.NO_STREAM, "No streams were detected through yt-dlp.");
 @@ -420,6 +420,7 @@ var YoutubeExtractor = class extends BaseExtractor {
  		}
  	}
