@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
+
 import { type SecretKey, setSecret } from "@klyndre/config";
+
 import "#/env";
 
 const keys: SecretKey[] = ["youtube-cookies"];

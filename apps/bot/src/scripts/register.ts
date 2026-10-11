@@ -1,4 +1,5 @@
 import { type APIGuild, REST, Routes } from "discord.js";
+
 import { createRegistry } from "#/core/commands/registry";
 import { toSlashJSON } from "#/core/commands/slash";
 import { deployEnv } from "#/env";

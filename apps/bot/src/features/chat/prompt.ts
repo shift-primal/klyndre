@@ -1,6 +1,7 @@
 import { getSettings } from "@klyndre/config";
 import type { LoreEntry } from "@klyndre/db";
 import type { Message } from "discord.js";
+
 import type { SelectedLore } from "#/features/chat/lore";
 import { loadNotes, type People } from "#/features/chat/profiles";
 

@@ -1,6 +1,7 @@
 import { getSettings } from "@klyndre/config";
-import { PermissionsBitField, type VoiceBasedChannel } from "discord.js";
 import { type GuildQueue, type Track, useQueue } from "discord-player";
+import { PermissionsBitField, type VoiceBasedChannel } from "discord.js";
+
 import type { Command, CommandContext } from "#/core/commands/types";
 import { findTrack } from "#/features/music/find-track";
 

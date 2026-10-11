@@ -6,9 +6,12 @@ import {
 	Scripts,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+
 import { Toaster } from "#/components/ui/toast";
-import appCss from "../globals.css?url";
+
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
+
+import appCss from "../globals.css?url";
 
 interface MyRouterContext {
 	queryClient: QueryClient;

@@ -1,4 +1,5 @@
 import { useState } from "react";
+
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import { ItemGroup } from "#/components/ui/item";
@@ -22,7 +23,7 @@ export const ProfileList = ({ guildId, readOnly }: Props) => {
 
 	if (profiles.length === 0) {
 		return (
-			<p className="text-sm text-muted-foreground">
+			<p className="text-muted-foreground text-sm">
 				No notes on anyone yet. The bot writes them as it chats.
 			</p>
 		);
@@ -56,7 +57,7 @@ export const ProfileList = ({ guildId, readOnly }: Props) => {
 				)}
 			</div>
 			{shown.length === 0 ? (
-				<p className="text-sm text-muted-foreground">No profiles match.</p>
+				<p className="text-muted-foreground text-sm">No profiles match.</p>
 			) : (
 				<ItemGroup>
 					{shown.map((profile) => (

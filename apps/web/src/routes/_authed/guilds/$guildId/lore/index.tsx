@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+
 import { LoreList } from "#/features/lore/components/lore-list";
 import { loreQuery } from "#/features/lore/lib/lore-queries";
 

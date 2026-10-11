@@ -2,6 +2,7 @@ import { type ModuleName, moduleSchemas } from "@klyndre/config/schemas";
 import { useForm } from "@tanstack/react-form";
 import { ChevronRight } from "lucide-react";
 import { useEffect, useRef } from "react";
+
 import { Button } from "#/components/ui/button";
 import {
 	Collapsible,
@@ -146,7 +147,7 @@ export const ModuleForm = ({
 			)}
 
 			{readOnly ? (
-				<p className="text-sm text-muted-foreground">
+				<p className="text-muted-foreground text-sm">
 					You have read-only access.
 				</p>
 			) : (

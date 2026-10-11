@@ -1,4 +1,5 @@
 import { type PerformanceEntry, PerformanceObserver } from "node:perf_hooks";
+
 import { getSettings } from "@klyndre/config";
 import type { Player } from "discord-player";
 

@@ -1,5 +1,6 @@
 import { listenForSettingsChanges } from "@klyndre/config/listen";
 import { Events } from "discord.js";
+
 import { createClient } from "#/core/client";
 import { registerDispatch } from "#/core/commands/dispatch";
 import { createRegistry } from "#/core/commands/registry";

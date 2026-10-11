@@ -1,5 +1,6 @@
 import type { ModuleName } from "@klyndre/config/schemas";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+
 import { toast } from "#/components/ui/toast";
 import { guildSettingsQuery } from "#/features/settings/lib/settings-queries";
 import { saveGuildSettings } from "#/features/settings/server/settings.functions";

@@ -12,6 +12,7 @@ import { generateText, type ModelMessage, Output } from "ai";
 import type { Message } from "discord.js";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
+
 import { chatModel } from "#/features/chat/model";
 import { botNameOf } from "#/features/chat/prompt";
 import { withoutImages } from "#/features/chat/reply";

@@ -1,6 +1,7 @@
 import { getSettings } from "@klyndre/config";
 import type { FilePart, ModelMessage } from "ai";
 import { type Message, MessageReferenceType } from "discord.js";
+
 import type { People } from "#/features/chat/profiles";
 
 // the reset command replies with this, and history stops reading at it
@@ -15,13 +16,11 @@ const nameOf = (msg: Message<true>) =>
 const imagesOf = (msg: Message<true>): FilePart[] =>
 	msg.attachments
 		.filter((att) => att.contentType?.startsWith("image/"))
-		.map(
-			(att): FilePart => ({
-				type: "file",
-				data: new URL(att.url),
-				mediaType: att.contentType ?? "image",
-			}),
-		);
+		.map((att): FilePart => ({
+			type: "file",
+			data: new URL(att.url),
+			mediaType: att.contentType ?? "image",
+		}));
 
 // who a discord reply is aimed at, without it "du" is guesswork for the model
 const replyingTo = (

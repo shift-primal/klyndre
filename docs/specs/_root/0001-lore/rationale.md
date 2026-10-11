@@ -21,10 +21,12 @@ There are also klyndre specific constraints. Everything is per guild (settings, 
 Self lore only, scoped per guild instead of global, the same relevance scoring over the full transcript, `meg` plus random fill always included, and an update after every reply.
 
 **Pros**:
+
 - Proven code to copy, and the least design work.
 - Learns every made up fact right away.
 
 **Cons**:
+
 - Brings back the exact snowballing and repetition that made it unusable.
 - One extra model call per reply.
 - No server culture at all.
@@ -34,11 +36,13 @@ Self lore only, scoped per guild instead of global, the same relevance scoring o
 `self` and `server` entries in one per guild table. Matching only on human messages, locked seed entries that are always eligible but cool down after unprompted use, random fill off by default, and a strict updater every N replies that is capped per run and in total, can't touch locked rows, and only deletes through renames.
 
 **Pros**:
+
 - Blocks each cause of the old spiral.
 - Covers both the persona's consistency and server culture with one table, one updater and one page.
 - Every behaviour is a setting, so it can be tuned from the web app without a deploy.
 
 **Cons**:
+
 - More moving parts than a port (cooldown map, rename rules, caps).
 - Keyword matching misses paraphrases.
 - One updater prompt has to handle two quite different kinds well.
@@ -48,10 +52,12 @@ Self lore only, scoped per guild instead of global, the same relevance scoring o
 Separate tables, updaters and pages, each with its own tuned prompt and cadence.
 
 **Pros**:
+
 - Each updater prompt can be focused, which likely gives better extraction quality.
 - Each can be turned on and off separately.
 
 **Cons**:
+
 - Twice the schema, server functions, UI and settings for what is the same key → notes shape.
 - Two model calls per update cycle.
 - Shared guard logic would be duplicated or need a shared layer anyway.
@@ -61,10 +67,12 @@ Separate tables, updaters and pages, each with its own tuned prompt and cadence.
 Admins write all lore on the web page, with no updater.
 
 **Pros**:
+
 - No extra model calls, and no risk of snowballing from learning.
 - Fully curated.
 
 **Cons**:
+
 - The bot's made up details are never remembered, which was the main reason for lore.
 - Server lore depends on an admin noticing and writing every joke down.
 - Doesn't fix repetition at all, because always on entries can still be overused.

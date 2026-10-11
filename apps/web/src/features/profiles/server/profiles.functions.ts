@@ -2,6 +2,7 @@ import { db, profiles } from "@klyndre/db";
 import { createServerFn } from "@tanstack/react-start";
 import { and, asc, eq } from "drizzle-orm";
 import { z } from "zod";
+
 import {
 	adminMiddleware,
 	authMiddleware,

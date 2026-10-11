@@ -3,7 +3,7 @@ packages:
   - packages/*
 
 allowBuilds:
-  '@discordjs/opus': true
+  "@discordjs/opus": true
   esbuild: true
   youtube-dl-exec: true
 

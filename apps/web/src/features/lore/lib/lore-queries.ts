@@ -1,4 +1,5 @@
 import { queryOptions } from "@tanstack/react-query";
+
 import { listLore } from "#/features/lore/server/lore.functions";
 
 export const loreQuery = (guildId: string) =>

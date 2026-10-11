@@ -1,6 +1,7 @@
 import { getSettings } from "@klyndre/config";
-import type { VoiceBasedChannel } from "discord.js";
 import { type GuildQueue, useMainPlayer, useQueue } from "discord-player";
+import type { VoiceBasedChannel } from "discord.js";
+
 import type { CommandContext } from "#/core/commands/types";
 import { requireVoiceChannel } from "#/features/music/access";
 import { queueOptions } from "#/features/music/queue-options";

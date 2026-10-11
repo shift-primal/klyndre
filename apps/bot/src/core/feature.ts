@@ -1,4 +1,5 @@
 import type { Client } from "discord.js";
+
 import type { Command } from "#/core/commands/types";
 
 export interface Feature {

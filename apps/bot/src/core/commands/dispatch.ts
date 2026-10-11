@@ -1,5 +1,6 @@
 import { getSettings } from "@klyndre/config";
 import { type Client, Events, MessageFlags } from "discord.js";
+
 import { refusal } from "#/core/commands/guards";
 import type { CommandRegistry } from "#/core/commands/registry";
 import type { Command, CommandContext } from "#/core/commands/types";

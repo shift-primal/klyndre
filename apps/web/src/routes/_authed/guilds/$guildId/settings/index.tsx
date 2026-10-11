@@ -1,5 +1,6 @@
 import type { ModuleName } from "@klyndre/config/schemas";
 import { createFileRoute } from "@tanstack/react-router";
+
 import { guildOptionsQuery } from "#/features/guilds/lib/guild-queries";
 import { SettingsTabs } from "#/features/settings/components/settings-tabs";
 import { moduleNames } from "#/features/settings/lib/fields";

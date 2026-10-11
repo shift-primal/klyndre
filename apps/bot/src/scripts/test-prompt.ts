@@ -1,10 +1,12 @@
 import { existsSync } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { parseArgs } from "node:util";
+
 import { getSettings } from "@klyndre/config";
 import { db, guildSettings, profiles } from "@klyndre/db";
 import type { ModelMessage } from "ai";
 import { and, eq, inArray } from "drizzle-orm";
+
 import "#/env";
 import { loadLore, selectLore } from "#/features/chat/lore";
 import {
@@ -242,7 +244,10 @@ const results = await pool(runs, concurrency, async (): Promise<Result> => {
 		await instructionsFor(),
 		history,
 		turn,
-		{ model: values.model, temperature },
+		{
+			model: values.model,
+			temperature,
+		},
 	);
 	const number = ++printed;
 	if (!values.quiet) {

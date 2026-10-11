@@ -4,6 +4,7 @@ import {
 	Outlet,
 	redirect,
 } from "@tanstack/react-router";
+
 import { Header } from "#/components/layout/header";
 import { getSession } from "#/features/auth/server/auth.functions";
 

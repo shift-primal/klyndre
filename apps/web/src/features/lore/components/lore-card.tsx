@@ -1,4 +1,5 @@
 import { useState } from "react";
+
 import { Button } from "#/components/ui/button";
 import {
 	Item,
@@ -45,7 +46,7 @@ export const LoreCard = ({ entry, actions, readOnly }: Props) => {
 					<ItemTitle>
 						{entry.key}
 						{entry.locked && (
-							<span className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
+							<span className="bg-muted text-muted-foreground rounded-md px-1.5 py-0.5 text-xs font-normal">
 								Locked
 							</span>
 						)}

@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+
 import { ProfileList } from "#/features/profiles/components/profile-list";
 import { profilesQuery } from "#/features/profiles/lib/profile-queries";
 

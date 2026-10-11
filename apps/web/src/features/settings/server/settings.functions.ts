@@ -2,6 +2,7 @@ import { getSettings, setSettings } from "@klyndre/config";
 import { type ModuleName, moduleSchemas } from "@klyndre/config/schemas";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+
 import {
 	adminMiddleware,
 	authMiddleware,

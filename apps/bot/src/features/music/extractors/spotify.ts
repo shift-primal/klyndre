@@ -4,6 +4,7 @@ import {
 	QueryType,
 	type SearchQueryType,
 } from "discord-player";
+
 import { env } from "#/env";
 
 const SPOTIFY_LINK = /^(https?:\/\/open\.spotify\.com\/|spotify:)/;

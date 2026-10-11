@@ -1,5 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
 import { LogOut } from "lucide-react";
+
 import { Button } from "#/components/ui/button";
 import { authClient } from "#/features/auth/lib/auth-client";
 
@@ -8,17 +9,17 @@ export default function BetterAuthHeader() {
 	const router = useRouter();
 
 	if (isPending) {
-		return <div className="h-8 w-8 animate-pulse bg-muted" />;
+		return <div className="bg-muted h-8 w-8 animate-pulse" />;
 	}
 
 	if (session?.user) {
 		return (
-			<div className="flex items-center gap-2 justify-end">
+			<div className="flex items-center justify-end gap-2">
 				{session.user.image ? (
 					<img src={session.user.image} alt="" className="h-8 w-8" />
 				) : (
-					<div className="flex h-8 w-8 items-center justify-center bg-muted rounded-full">
-						<span className="text-xs font-medium text-muted-foreground">
+					<div className="bg-muted flex h-8 w-8 items-center justify-center rounded-full">
+						<span className="text-muted-foreground text-xs font-medium">
 							{session.user.name?.charAt(0).toUpperCase() || "U"}
 						</span>
 					</div>

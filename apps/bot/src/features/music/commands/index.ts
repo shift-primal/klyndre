@@ -2,6 +2,7 @@ import type { Command } from "#/core/commands/types";
 import { playNext } from "#/features/music/commands/play-next";
 import { playNow } from "#/features/music/commands/play-now";
 import { skipTo } from "#/features/music/commands/skip-to";
+
 import { loop } from "./loop";
 import { move } from "./move";
 import { nowplaying } from "./nowplaying";

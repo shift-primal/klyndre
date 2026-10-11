@@ -1,4 +1,5 @@
 import { getSettings } from "@klyndre/config";
+
 import type { Command } from "#/core/commands/types";
 import type { Feature } from "#/core/feature";
 import { chunk, formatArguments } from "#/lib/utils/text";
@@ -87,7 +88,9 @@ export const help: Command = {
 
 		await ctx.reply(
 			`There is no feature or command called "${topic}". Try \`${prefix}help\`.`,
-			{ ephemeral: true },
+			{
+				ephemeral: true,
+			},
 		);
 	},
 };

@@ -1,4 +1,5 @@
 import { createMiddleware } from "@tanstack/react-start";
+
 import { auth } from "#/features/auth/server/auth";
 
 export const authMiddleware = createMiddleware().server(

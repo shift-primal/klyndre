@@ -1,5 +1,6 @@
 import { getSettings } from "@klyndre/config";
 import { useMainPlayer, useQueue } from "discord-player";
+
 import type { Command } from "#/core/commands/types";
 import { refuse, requireVoiceChannel } from "#/features/music/access";
 import { queueOptions } from "#/features/music/queue-options";

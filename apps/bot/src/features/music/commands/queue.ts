@@ -1,4 +1,5 @@
 import { getSettings } from "@klyndre/config";
+
 import type { Command } from "#/core/commands/types";
 import { refuse, requireQueue } from "#/features/music/access";
 import { renderQueue } from "#/features/music/ui/queue";

@@ -1,3 +1,4 @@
+import { QueueRepeatMode, useQueue } from "discord-player";
 import {
 	ActionRowBuilder,
 	ButtonBuilder,
@@ -5,7 +6,7 @@ import {
 	ButtonStyle,
 	MessageFlags,
 } from "discord.js";
-import { QueueRepeatMode, useQueue } from "discord-player";
+
 import { skipCurrent } from "#/features/music/skip";
 
 const CONTROL_ID_PREFIX = "np:";

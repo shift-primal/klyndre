@@ -1,8 +1,9 @@
 import { DefaultExtractors, SpotifyExtractor } from "@discord-player/extractor";
 import { onSecretChange } from "@klyndre/config/listen";
-import type { Client } from "discord.js";
 import { Player, useMainPlayer } from "discord-player";
 import { YoutubeExtractor } from "discord-player-youtubei";
+import type { Client } from "discord.js";
+
 import { env } from "#/env";
 import { registerAnnouncements } from "#/features/music/announcements";
 import { CustomSpotifyExtractor } from "#/features/music/extractors/spotify";

@@ -7,6 +7,7 @@ import {
 	timestamp,
 	uniqueIndex,
 } from "drizzle-orm/pg-core";
+
 import type { LoreKind } from "../lore";
 
 export const loreEntries = pgTable(

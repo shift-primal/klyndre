@@ -1,4 +1,5 @@
 # Verify: lore · spec 0001 · updated 2026-10-05
+
 _Steps derived from spec 0001 acceptance criteria. `/check verify` runs these; `/test` locks the durable ones._
 
 ## UI / manual

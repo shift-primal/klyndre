@@ -22,4 +22,7 @@ export const advanced = <T>(
 	value: T,
 	description: string,
 	widget?: Widget,
-): Meta<T> => ({ ...meta(value, description, widget), advanced: true });
+): Meta<T> => ({
+	...meta(value, description, widget),
+	advanced: true,
+});

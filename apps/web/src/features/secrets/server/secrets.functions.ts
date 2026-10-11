@@ -1,6 +1,7 @@
 import { getSecretInfo, setSecret } from "@klyndre/config";
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+
 import { adminMiddleware } from "#/features/auth/server/auth-middleware";
 
 // only says whether the cookies exist, the value never leaves the server

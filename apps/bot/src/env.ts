@@ -1,5 +1,6 @@
 import { config } from "dotenv";
 import { z } from "zod";
+
 import { rootPath } from "#/lib/utils/fs";
 
 config({ path: [rootPath(".env.local"), rootPath(".env")] });

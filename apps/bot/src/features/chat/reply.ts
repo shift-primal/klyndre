@@ -1,7 +1,9 @@
 import { setTimeout as sleep } from "node:timers/promises";
+
 import { getSettings } from "@klyndre/config";
 import { type FinishReason, generateText, type ModelMessage } from "ai";
 import type { Message, MessageMentionOptions } from "discord.js";
+
 import { chatModel } from "#/features/chat/model";
 import {
 	firstWord,

@@ -1,4 +1,5 @@
 import { Events } from "discord.js";
+
 import type { Feature } from "#/core/feature";
 import { chatCommands } from "#/features/chat/commands";
 import { handleMessage } from "#/features/chat/handler";

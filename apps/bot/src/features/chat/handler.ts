@@ -1,5 +1,6 @@
 import { getSettings } from "@klyndre/config";
 import type { Message } from "discord.js";
+
 import { buildHistory } from "#/features/chat/history";
 import { maybeUpdateLore, noteUsage, pickLore } from "#/features/chat/lore";
 import {

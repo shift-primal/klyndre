@@ -4,6 +4,7 @@ import { generateText, type ModelMessage, Output } from "ai";
 import type { Message } from "discord.js";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
+
 import { chatModel } from "#/features/chat/model";
 
 export type People = Map<string, string>;

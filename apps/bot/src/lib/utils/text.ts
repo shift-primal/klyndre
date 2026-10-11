@@ -1,4 +1,5 @@
 import { escapeMarkdown } from "discord.js";
+
 import type { CommandArgument } from "#/core/commands/types";
 
 export function escapeLabel(text: string): string {

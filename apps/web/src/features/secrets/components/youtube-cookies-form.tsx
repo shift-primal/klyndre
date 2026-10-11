@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+
 import { Button } from "#/components/ui/button";
 import { Textarea } from "#/components/ui/textarea";
 import { toast } from "#/components/ui/toast";
@@ -43,7 +44,7 @@ export const YoutubeCookiesForm = ({ info }: Props) => {
 				save.mutate();
 			}}
 		>
-			<h2 className="font-semibold text-lg">YouTube cookies</h2>
+			<h2 className="text-lg font-semibold">YouTube cookies</h2>
 			<p className="text-muted-foreground text-sm">
 				{info.isSet
 					? `Set, last updated ${new Date(info.updatedAt ?? 0).toLocaleString()}.`

@@ -1,6 +1,7 @@
 import type { ModuleName } from "@klyndre/config/schemas";
 import { useBlocker } from "@tanstack/react-router";
 import { useState } from "react";
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "#/components/ui/tabs";
 import { ModuleForm } from "#/features/settings/components/module-form";
 import { moduleLabel, moduleNames } from "#/features/settings/lib/fields";

@@ -1,4 +1,5 @@
 import { type Client, Events } from "discord.js";
+
 import { handleControl, isControlButton } from "#/features/music/ui/controls";
 import { handleQueuePage, isQueueButton } from "#/features/music/ui/queue";
 
