@@ -16,11 +16,13 @@ const nameOf = (msg: Message<true>) =>
 const imagesOf = (msg: Message<true>): FilePart[] =>
 	msg.attachments
 		.filter((att) => att.contentType?.startsWith("image/"))
-		.map((att): FilePart => ({
-			type: "file",
-			data: new URL(att.url),
-			mediaType: att.contentType ?? "image",
-		}));
+		.map(
+			(att): FilePart => ({
+				type: "file",
+				data: new URL(att.url),
+				mediaType: att.contentType ?? "image",
+			}),
+		);
 
 // who a discord reply is aimed at, without it "du" is guesswork for the model
 const replyingTo = (

@@ -1,11 +1,11 @@
 import { getSettings } from "@klyndre/config";
+import type { Message } from "discord.js";
 import {
 	type GuildQueue,
 	type Player,
 	type Track,
 	TrackSkipReason,
 } from "discord-player";
-import type { Message } from "discord.js";
 
 import { createRetryTracker } from "#/features/music/retry";
 import type { QueueMetadata } from "#/features/music/types";

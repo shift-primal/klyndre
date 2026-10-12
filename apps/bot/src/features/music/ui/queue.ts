@@ -1,11 +1,11 @@
 import { getSettings } from "@klyndre/config";
-import { type GuildQueue, useQueue } from "discord-player";
 import {
 	ActionRowBuilder,
 	ButtonBuilder,
 	type ButtonInteraction,
 	ButtonStyle,
 } from "discord.js";
+import { type GuildQueue, useQueue } from "discord-player";
 
 import { formatNowPlaying, formatTrack } from "#/features/music/ui/format";
 

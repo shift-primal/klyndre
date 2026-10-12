@@ -8,10 +8,8 @@ import {
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 
 import { Toaster } from "#/components/ui/toast";
-
-import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
-
 import appCss from "../globals.css?url";
+import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 
 interface MyRouterContext {
 	queryClient: QueryClient;
