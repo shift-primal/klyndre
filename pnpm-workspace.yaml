@@ -8,4 +8,5 @@ allowBuilds:
   youtube-dl-exec: true
 
 patchedDependencies:
+  '@discord-player/extractor@7.2.0': patches/@discord-player__extractor@7.2.0.patch
   discord-player-youtubei@3.1.0: patches/discord-player-youtubei@3.1.0.patch

@@ -1,0 +1,62 @@
+diff --git a/dist/index.js b/dist/index.js
+index d3605334ec4ec4d8d92936ef7a2427b478d07a23..9f4fda82be193f57eb6c633fbe1306ecdf7d1540 100644
+--- a/dist/index.js
++++ b/dist/index.js
+@@ -1615,7 +1615,7 @@ var _SpotifyExtractor = class _SpotifyExtractor extends import_discord_player7.B
+               title: m.title ?? "",
+               description: m.title ?? "",
+               author: m.subtitle ?? "Unknown Artist",
+-              url: m.uid ? `https://open.spotify.com/tracks/${m.uid}` : query,
++              url: m.uri?.startsWith("spotify:track:") ? `https://open.spotify.com/track/${m.uri.slice(14)}` : query,
+               thumbnail: "https://www.scdn.co/i/_global/twitter_card-default.jpg",
+               duration: import_discord_player7.Util.buildTimeCode(import_discord_player7.Util.parseMS(m.duration)),
+               views: 0,
+@@ -1707,7 +1707,7 @@ var _SpotifyExtractor = class _SpotifyExtractor extends import_discord_player7.B
+             },
+             tracks: [],
+             id: album.id,
+-            url: album.id ? `https://open.spotify.com/playlist/${album.id}` : query,
++            url: album.id ? `https://open.spotify.com/album/${album.id}` : query,
+             rawPlaylist: album
+           });
+           playlist.tracks = album.trackList.map((m) => {
+@@ -1715,7 +1715,7 @@ var _SpotifyExtractor = class _SpotifyExtractor extends import_discord_player7.B
+               title: m.title ?? "",
+               description: m.title ?? "",
+               author: m.subtitle ?? "Unknown Artist",
+-              url: m.uid ? `https://open.spotify.com/tracks/${m.uid}` : query,
++              url: m.uri?.startsWith("spotify:track:") ? `https://open.spotify.com/track/${m.uri.slice(14)}` : query,
+               thumbnail: "https://www.scdn.co/i/_global/twitter_card-default.jpg",
+               duration: import_discord_player7.Util.buildTimeCode(import_discord_player7.Util.parseMS(m.duration)),
+               views: 0,
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 6f28a32f993cf956e16ad5010a88b94074d26324..8a7ee5633f16f1d7b069e7622d2f14f9361fcf82 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -1615,7 +1615,7 @@ var _SpotifyExtractor = class _SpotifyExtractor extends BaseExtractor6 {
+               title: m.title ?? "",
+               description: m.title ?? "",
+               author: m.subtitle ?? "Unknown Artist",
+-              url: m.uid ? `https://open.spotify.com/tracks/${m.uid}` : query,
++              url: m.uri?.startsWith("spotify:track:") ? `https://open.spotify.com/track/${m.uri.slice(14)}` : query,
+               thumbnail: "https://www.scdn.co/i/_global/twitter_card-default.jpg",
+               duration: Util6.buildTimeCode(Util6.parseMS(m.duration)),
+               views: 0,
+@@ -1707,7 +1707,7 @@ var _SpotifyExtractor = class _SpotifyExtractor extends BaseExtractor6 {
+             },
+             tracks: [],
+             id: album.id,
+-            url: album.id ? `https://open.spotify.com/playlist/${album.id}` : query,
++            url: album.id ? `https://open.spotify.com/album/${album.id}` : query,
+             rawPlaylist: album
+           });
+           playlist.tracks = album.trackList.map((m) => {
+@@ -1715,7 +1715,7 @@ var _SpotifyExtractor = class _SpotifyExtractor extends BaseExtractor6 {
+               title: m.title ?? "",
+               description: m.title ?? "",
+               author: m.subtitle ?? "Unknown Artist",
+-              url: m.uid ? `https://open.spotify.com/tracks/${m.uid}` : query,
++              url: m.uri?.startsWith("spotify:track:") ? `https://open.spotify.com/track/${m.uri.slice(14)}` : query,
+               thumbnail: "https://www.scdn.co/i/_global/twitter_card-default.jpg",
+               duration: Util6.buildTimeCode(Util6.parseMS(m.duration)),
+               views: 0,
