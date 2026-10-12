@@ -163,6 +163,7 @@ settings:
   excludeLinksFromLockfile: false
 
 patchedDependencies:
+  '@discord-player/extractor@7.2.0': 1e97eadbd0354cc65f4d5b1dde5a5ce14135c06341780587fc51858dfa6e12e5
   discord-player-youtubei@3.1.0: d3fb8704b51d77ec1e0cb70ba8e541f8ec3d29fa86f2a08cd0743ab5ebce4858
 
 importers:
@@ -186,7 +187,7 @@ importers:
         version: 5.0.14(zod@4.6.5)
       '@discord-player/extractor':
         specifier: ^7.2.0
-        version: 7.2.0
+        version: 7.2.0(patch_hash=1e97eadbd0354cc65f4d5b1dde5a5ce14135c06341780587fc51858dfa6e12e5)
       '@discordjs/opus':
         specifier: ^0.10.0
         version: 0.10.0
@@ -207,7 +208,7 @@ importers:
         version: 4.0.3
       discord-player:
         specifier: ^7.2.0
-        version: 7.2.0(@discord-player/extractor@7.2.0)(jiti@2.7.0)(mediaplex@1.0.0)(postcss@8.5.28)(tsx@4.23.15)
+        version: 7.2.0(@discord-player/extractor@7.2.0(patch_hash=1e97eadbd0354cc65f4d5b1dde5a5ce14135c06341780587fc51858dfa6e12e5))(jiti@2.7.0)(mediaplex@1.0.0)(postcss@8.5.28)(tsx@4.23.15)
       discord-player-youtubei:
         specifier: ^3.1.0
         version: 3.1.0(patch_hash=d3fb8704b51d77ec1e0cb70ba8e541f8ec3d29fa86f2a08cd0743ab5ebce4858)(bgutils-js@4.0.3)(googlevideo@4.1.1)
@@ -6216,7 +6217,7 @@ snapshots:
 
   '@discord-player/equalizer@7.2.0': {}
 
-  '@discord-player/extractor@7.2.0':
+  '@discord-player/extractor@7.2.0(patch_hash=1e97eadbd0354cc65f4d5b1dde5a5ce14135c06341780587fc51858dfa6e12e5)':
     dependencies:
       file-type: 16.5.4
       isomorphic-unfetch: 4.0.2
@@ -8343,10 +8344,10 @@ snapshots:
       googlevideo: 4.1.1
       youtubei.js: 18.1.0
 
-  discord-player@7.2.0(@discord-player/extractor@7.2.0)(jiti@2.7.0)(mediaplex@1.0.0)(postcss@8.5.28)(tsx@4.23.15):
+  discord-player@7.2.0(@discord-player/extractor@7.2.0(patch_hash=1e97eadbd0354cc65f4d5b1dde5a5ce14135c06341780587fc51858dfa6e12e5))(jiti@2.7.0)(mediaplex@1.0.0)(postcss@8.5.28)(tsx@4.23.15):
     dependencies:
       '@discord-player/equalizer': 7.2.0
-      '@discord-player/extractor': 7.2.0
+      '@discord-player/extractor': 7.2.0(patch_hash=1e97eadbd0354cc65f4d5b1dde5a5ce14135c06341780587fc51858dfa6e12e5)
       '@discord-player/ffmpeg': 7.2.0
       '@discord-player/utils': 7.2.0
       '@web-scrobbler/metadata-filter': 3.2.0

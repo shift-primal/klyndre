@@ -1,11 +1,11 @@
-import { getSettings } from "@klyndre/config";
+import { getSettings, moduleSchemas } from "@klyndre/config";
+import type { Message } from "discord.js";
 import {
 	type GuildQueue,
 	type Player,
 	type Track,
 	TrackSkipReason,
 } from "discord-player";
-import type { Message } from "discord.js";
 
 import { createRetryTracker } from "#/features/music/retry";
 import type { QueueMetadata } from "#/features/music/types";
@@ -43,17 +43,23 @@ async function retireNowPlaying(guildId: string, content?: string) {
 	}
 }
 
-function retryLater(queue: GuildQueue, track: Track) {
-	setImmediate(() => {
-		queue.insertTrack(track, 0);
-		if (!queue.isPlaying()) void queue.node.play();
-	});
+// the skip handler has to decide synchronously (see playerSkip below), so keep
+// each guild's retry limit at hand and refresh it in the background
+const defaultMaxRetries = moduleSchemas.music.parse({}).maxTrackRetries;
+const maxRetries = new Map<string, number>();
+
+function refreshMaxRetries(guildId: string) {
+	getSettings(guildId, "music").then(
+		({ maxTrackRetries }) => maxRetries.set(guildId, maxTrackRetries),
+		(error) => console.error("[announce]", error),
+	);
 }
 
 export function registerAnnouncements(player: Player) {
 	player.events.on("playerStart", async (queue, track) => {
 		console.log(`[start] ${track.title}`);
 		retries.clear(retryKey(queue, track));
+		refreshMaxRetries(queue.guild.id);
 		await retireNowPlaying(queue.guild.id);
 
 		const channel = textChannel(queue);
@@ -88,18 +94,25 @@ export function registerAnnouncements(player: Player) {
 		);
 	});
 
-	player.events.on("playerSkip", async (queue, track, reason) => {
+	// discord-player emits this synchronously and then immediately takes the next
+	// track off the queue and starts it. Putting the failed track back at the
+	// front before returning makes the player pick it up as that next track.
+	// Waiting first (or calling play() ourselves) starts a second play alongside
+	// the player's own, and whichever finishes last cuts off the other
+	player.events.on("playerSkip", (queue, track, reason) => {
 		if (reason !== TrackSkipReason.NoStream) return;
-		const { maxTrackRetries } = await getSettings(queue.guild.id, "music");
+		const guildId = queue.guild.id;
+		const limit = maxRetries.get(guildId) ?? defaultMaxRetries;
+		refreshMaxRetries(guildId);
 
-		if (retries.shouldRetry(retryKey(queue, track), maxTrackRetries)) {
-			await announce(
+		if (retries.shouldRetry(retryKey(queue, track), limit)) {
+			queue.insertTrack(track, 0);
+			void announce(
 				queue,
 				`⚠️ Couldn't load ${formatTrack(track)}. Trying it again next.`,
 			);
-			retryLater(queue, track);
 		} else {
-			await announce(
+			void announce(
 				queue,
 				`⚠️ Skipped ${formatTrack(track)}: the audio could not be loaded.`,
 			);
