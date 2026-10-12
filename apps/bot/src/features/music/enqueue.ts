@@ -74,9 +74,11 @@ async function playAtEnd(ctx: CommandContext, voiceChannel: VoiceBasedChannel) {
 		},
 	);
 	const { playlist } = searchResult;
-	const isPlayingNow = queue.currentTrack?.id === track.id;
 	const position =
 		queue.tracks.toArray().findIndex((t) => t.id === track.id) + 1;
+	// not in the upcoming list means it's the one playing, or still loading
+	// as the first track (currentTrack is only set once its audio is ready)
+	const isPlayingNow = position === 0;
 
 	const trackLine = isPlayingNow
 		? `🔥 Time to play some bangers 🔥`

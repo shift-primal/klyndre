@@ -45,6 +45,17 @@ function innertube(ext: YoutubeExtractor) {
 	return ext.innertube;
 }
 
+// yt-dlp prints why it failed (bot check, region block, age gate) to stderr
+function ytdlpError(stderr: string) {
+	const lines = stderr
+		.split("\n")
+		.map((line) => line.trim())
+		.filter(Boolean);
+	const errors = lines.filter((line) => line.startsWith("ERROR"));
+	const reason = (errors.length > 0 ? errors : lines.slice(-3)).join(" | ");
+	return new Error(reason.slice(0, 500) || "yt-dlp exited without audio");
+}
+
 function ytdlp(cookiePath: string | undefined): Opener {
 	return async (videoId, track) => {
 		const dl = youtubeDl.exec(`https://youtu.be/${videoId}`, {
@@ -56,13 +67,37 @@ function ytdlp(cookiePath: string | undefined): Opener {
 			cookies: cookiePath,
 		});
 		if (!dl.stdout) throw new Error("yt-dlp gave no output stream");
-		const audio = dl.stdout;
-		dl.catch((error: unknown) => {
-			if (!dl.killed) audio.destroy(error as Error);
+
+		let stderr = "";
+		dl.stderr?.on("data", (chunk: Buffer) => {
+			stderr += chunk.toString();
 		});
+
+		// hold the end back until yt-dlp exits, so a failure arrives as its own
+		// message instead of a bare "ended before any audio"
+		const audio = new PassThrough();
+		dl.stdout.pipe(audio, { end: false });
+		dl.then(
+			() => audio.end(),
+			() => {
+				if (!dl.killed) audio.destroy(ytdlpError(stderr));
+			},
+		);
 		audio.once("close", () => dl.kill());
 		return audio;
 	};
+}
+
+// when every method fails, ask YouTube directly why it won't serve the video
+async function playability(ext: YoutubeExtractor, videoId: string) {
+	try {
+		const info = await innertube(ext).getBasicInfo(videoId);
+		const status = info.playability_status;
+		if (!status) return "no playability status";
+		return [status.status, status.reason].filter(Boolean).join(": ");
+	} catch (error) {
+		return `couldn't check: ${error instanceof Error ? error.message : error}`;
+	}
 }
 
 // a method hands its stream back before any audio has come through, and a
@@ -120,6 +155,8 @@ export function youtubeOptions(cookies: string): YoutubeOptions {
 					);
 				}
 			}
+			const status = await playability(ext, videoId);
+			console.warn(`[music] YouTube says for "${track.title}": ${status}`);
 			throw new Error(`Couldn't stream "${track.title}" from YouTube`);
 		},
 	};

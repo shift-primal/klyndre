@@ -83,6 +83,11 @@ export function registerAnnouncements(player: Player) {
 			metadataSource: track.source,
 			foundByExtractor: track.extractor?.identifier ?? "Unknown",
 			rawSource: track.raw?.source ?? track.source,
+			// a Spotify track has no audio of its own; this is where it came from
+			playedFrom: track.bridgedExtractor?.identifier ?? "itself",
+			playedTrack: track.bridgedTrack
+				? `${track.bridgedTrack.title} (${track.bridgedTrack.url})`
+				: undefined,
 		});
 	});
 
