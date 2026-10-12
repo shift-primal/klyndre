@@ -1,6 +1,11 @@
 import { getSettings } from "@klyndre/config";
 import type { VoiceBasedChannel } from "discord.js";
-import { type GuildQueue, useMainPlayer, useQueue } from "discord-player";
+import {
+	type GuildQueue,
+	QueryResolver,
+	useMainPlayer,
+	useQueue,
+} from "discord-player";
 
 import type { CommandContext } from "#/core/commands/types";
 import { requireVoiceChannel } from "#/features/music/access";
@@ -11,11 +16,33 @@ import { formatPlaylist, formatTrack } from "#/features/music/ui/format";
 
 type EnqueueMode = "end" | "next" | "now";
 
+const SPOTIFY_WEB_LINK = /^https?:\/\/open\.spotify\.com\//;
+
+// discord-player only knows track, album and playlist links. Anything else on
+// open.spotify.com (a typo'd path, a bad id, an artist or episode) falls back to
+// searching the URL as text and plays whatever that happens to match
+function isUnplayableSpotifyLink(query: string) {
+	const link = query.trim();
+	if (!SPOTIFY_WEB_LINK.test(link)) return false;
+	return !QueryResolver.resolve(link).type.startsWith("spotify");
+}
+
+function isNoResult(error: unknown) {
+	return (error as { code?: string } | null)?.code === "ERR_NO_RESULT";
+}
+
 export async function enqueue(ctx: CommandContext, mode: EnqueueMode) {
 	const voiceChannel = await requireVoiceChannel(ctx);
 	if (!voiceChannel) return;
 
 	await ctx.defer();
+
+	if (isUnplayableSpotifyLink(ctx.args)) {
+		await ctx.reply(
+			"That Spotify link doesn't point to anything I can play. Use a track, album or playlist link (Share → Copy link in Spotify).",
+		);
+		return;
+	}
 
 	try {
 		const queue = useQueue(ctx.guild);
@@ -26,6 +53,10 @@ export async function enqueue(ctx: CommandContext, mode: EnqueueMode) {
 			await playAhead(ctx, queue, mode);
 		}
 	} catch (error) {
+		if (isNoResult(error)) {
+			await ctx.reply(`No results found for "${ctx.args}".`);
+			return;
+		}
 		console.error(error);
 		await ctx.reply("An error occurred while playing the song!");
 	}
