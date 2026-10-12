@@ -1,12 +1,12 @@
 import type { Command } from "#/core/commands/types";
-import { requireQueue } from "#/features/music/access";
+import { requireAnyQueue } from "#/features/music/access";
 
 export const stop: Command = {
 	name: "stop",
 	aliases: ["s", "dc"],
 	description: "Stop playing, clear the queue and leave the voice channel",
 	async run(ctx) {
-		const queue = await requireQueue(ctx);
+		const queue = await requireAnyQueue(ctx);
 		if (!queue) return;
 
 		queue.delete();

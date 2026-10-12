@@ -20,11 +20,30 @@ export async function requireQueue(
 		await refuse(ctx, "Nothing is playing right now.");
 		return null;
 	}
-	if (sameChannel && ctx.member.voice.channelId !== queue.channel?.id) {
-		await refuse(ctx, "You need to be in my voice channel to do that!");
+	if (sameChannel && !(await requireSameChannel(ctx, queue))) return null;
+	return queue as ActiveQueue;
+}
+
+// a queue exists from the moment /play starts it, but currentTrack stays null
+// until a track's audio has loaded, so while the first track is loading (or
+// failing and being retried) requireQueue doesn't see it. For stopping it anyway
+export async function requireAnyQueue(
+	ctx: CommandContext,
+): Promise<GuildQueue | null> {
+	const queue = useQueue(ctx.guild);
+
+	if (!queue) {
+		await refuse(ctx, "Nothing is playing right now.");
 		return null;
 	}
-	return queue as ActiveQueue;
+	if (!(await requireSameChannel(ctx, queue))) return null;
+	return queue;
+}
+
+async function requireSameChannel(ctx: CommandContext, queue: GuildQueue) {
+	if (ctx.member.voice.channelId === queue.channel?.id) return true;
+	await refuse(ctx, "You need to be in my voice channel to do that!");
+	return false;
 }
 
 export async function requireUpcomingTrack(
