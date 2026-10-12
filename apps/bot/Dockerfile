@@ -1,4 +1,8 @@
-FROM node:26-slim
+# Node 24, not 26: Node 26 pipes by calling the destination's _write() directly,
+# and @discord-player/ffmpeg's FFmpeg stream has none (it forwards write() to
+# ffmpeg's stdin instead), so playback dies with ERR_METHOD_NOT_IMPLEMENTED a
+# second into every track. Move up once discord-player handles that
+FROM node:24-slim
 
 # ffmpeg for audio, python3 for yt-dlp; build tools as a fallback if @discordjs/opus has no prebuilt binary
 RUN apt-get update \
