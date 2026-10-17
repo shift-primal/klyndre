@@ -28,6 +28,7 @@ import {
 	createSabrStream,
 } from "simple-ytdl-core";
 import youtubeDl from "youtube-dl-exec";
+import { Innertube } from "youtubei.js";
 
 const COOKIE_DOMAIN = /(^|\.)(youtube|google)\.com$/;
 const COOKIE_COPY = join(tmpdir(), "yt-cookies.txt");
@@ -104,6 +105,34 @@ function ytdlp(cookiePath: string | undefined): Opener {
 	};
 }
 
+// adaptive streams through a YouTube session of its own. Now and then a session
+// comes out where every audio request gets a 403 and stays that way, which
+// sent every song to yt-dlp until a restart. So a failure swaps in a fresh
+// session (~1s) and tries once more. Started right away so the first song
+// doesn't wait for it
+function adaptive(cookie: string | undefined): Opener {
+	let session: Promise<Innertube> | undefined;
+	const fresh = () => {
+		const created = Innertube.create({ retrieve_player: true, cookie });
+		session = created;
+		created.catch(() => {
+			if (session === created) session = undefined;
+		});
+		return created;
+	};
+	fresh();
+
+	return async (videoId) => {
+		const used = session ?? fresh();
+		try {
+			return await createAdaptiveStreamMultiStep(await used, videoId);
+		} catch {
+			const next = session === used ? fresh() : (session ?? fresh());
+			return createAdaptiveStreamMultiStep(await next, videoId);
+		}
+	};
+}
+
 // when every method fails, ask YouTube directly why it won't serve the video
 async function playability(ext: YoutubeExtractor, videoId: string) {
 	try {
@@ -149,12 +178,10 @@ export function youtubeOptions(cookies: string): YoutubeOptions {
 	}
 
 	// fastest first: adaptive streams in-process (~0.1s to audio), yt-dlp
-	// spawns python (~2s), sabr is slowest (~4s)
+	// spawns python and with cookies sits out the video's pre-roll ad (5-10s),
+	// sabr is slowest
 	const methods: [string, Opener][] = [
-		[
-			"adaptive",
-			(id, _track, ext) => createAdaptiveStreamMultiStep(innertube(ext), id),
-		],
+		["adaptive", adaptive(hasCookies ? cookieHeader(cookies) : undefined)],
 		["yt-dlp", ytdlp(hasCookies ? COOKIE_COPY : undefined)],
 		["sabr", (id, _track, ext) => createSabrStream(innertube(ext), id)],
 	];

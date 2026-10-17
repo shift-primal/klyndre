@@ -233,6 +233,9 @@ importers:
       youtube-dl-exec:
         specifier: ^3.1.15
         version: 3.1.15(debug@4.4.3)
+      youtubei.js:
+        specifier: ^18.1.0
+        version: 18.1.0
       zod:
         specifier: ^4.6.5
         version: 4.6.5
