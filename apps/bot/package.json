@@ -11,6 +11,7 @@
 		"register": "tsx src/scripts/register.ts",
 		"set:secret": "tsx src/scripts/set-secret.ts",
 		"test:prompt": "tsx src/scripts/test-prompt.ts",
+		"youtube:diag": "tsx src/scripts/youtube-diag.ts",
 		"typecheck": "tsc --noEmit"
 	},
 	"dependencies": {

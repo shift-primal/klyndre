@@ -35,7 +35,7 @@ const COOKIE_COPY = join(tmpdir(), "yt-cookies.txt");
 
 export const loadCookies = () => getSecret("youtube-cookies");
 
-function cookieHeader(cookies: string) {
+export function cookieHeader(cookies: string) {
 	const pairs: string[] = [];
 	for (const raw of cookies.split("\n")) {
 		const line = raw.replace(/^#HttpOnly_/, "").trim();
