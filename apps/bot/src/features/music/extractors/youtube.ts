@@ -116,6 +116,12 @@ async function playability(ext: YoutubeExtractor, videoId: string) {
 	}
 }
 
+// a method that keeps failing (adaptive behind a bot check) would make every
+// song wait for it to give up, so after a couple of failures in a row it moves
+// to the back for a while, then gets tried first again
+const FAILS_BEFORE_REST = 2;
+const REST_MS = 30 * 60_000;
+
 // a method hands its stream back before any audio has come through, and a
 // blocked request only errors after that. Wait for the first chunk so a
 // failure still falls through to the next method
@@ -153,17 +159,41 @@ export function youtubeOptions(cookies: string): YoutubeOptions {
 		["sabr", (id, _track, ext) => createSabrStream(innertube(ext), id)],
 	];
 
+	const failures = new Map<string, { inARow: number; lastAt: number }>();
+	const resting = ([name]: [string, Opener]) => {
+		const failed = failures.get(name);
+		return (
+			!!failed &&
+			failed.inARow >= FAILS_BEFORE_REST &&
+			Date.now() - failed.lastAt < REST_MS
+		);
+	};
+	const fail = (name: string) => {
+		const inARow = (failures.get(name)?.inARow ?? 0) + 1;
+		failures.set(name, { inARow, lastAt: Date.now() });
+		if (inARow === FAILS_BEFORE_REST) {
+			console.warn(
+				`[music] ${name} failed ${inARow} times in a row, trying it last for ${REST_MS / 60_000} minutes`,
+			);
+		}
+	};
+
 	return {
 		cookie: hasCookies ? cookieHeader(cookies) : undefined,
 		async createStream(track, ext) {
 			const videoId = getVideoId(track.url);
 			const started = performance.now();
 			const elapsed = () => `${Math.round(performance.now() - started)}ms`;
-			for (const [name, open] of methods) {
+			const order = [
+				...methods.filter((method) => !resting(method)),
+				...methods.filter(resting),
+			];
+			for (const [name, open] of order) {
 				let audio: Readable | undefined;
 				try {
 					audio = await open(videoId, track, ext);
 					const stream = await firstAudio(audio);
+					failures.delete(name);
 					console.log(
 						`[music] ${name} streamed "${track.title}" (${elapsed()})`,
 					);
@@ -174,6 +204,7 @@ export function youtubeOptions(cookies: string): YoutubeOptions {
 						`[music] ${name} couldn't stream "${track.title}" (${elapsed()}):`,
 						reason(error),
 					);
+					fail(name);
 				}
 			}
 			const status = await playability(ext, videoId);
