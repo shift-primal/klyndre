@@ -7,6 +7,8 @@ A Discord bot that hangs out in your server like a regular member. It chats (bac
 - [The dashboard](#the-dashboard)
 - [Local setup](#local-setup)
 - [Deploying](#deploying)
+  - [How YouTube is played](#how-youtube-is-played)
+  - [Streaming through a home connection](#streaming-through-a-home-connection)
 - [Working on it](#working-on-it)
 
 ## How it works
@@ -28,7 +30,7 @@ The bot is made of **features** (`apps/bot/src/features`), each with its own com
 
 - **general**: `help` and `ping`.
 - **chat**: decides when to reply, builds a prompt from the recent chat history, the server's lore and its notes on the people talking, and sends one reply at a time per channel. After replying it may update its notes on people and its lore in the background.
-- **music**: a [discord-player](https://discord-player.js.org) queue per server. YouTube is the main source (through `discord-player-youtubei`, falling back to yt-dlp when a stream won't open). Spotify links are resolved through the Spotify API and played from YouTube.
+- **music**: a [discord-player](https://discord-player.js.org) queue per server. YouTube is the main source (through `discord-player-youtubei`, see [How YouTube is played](#how-youtube-is-played)). Spotify links are resolved through the Spotify API and played from YouTube. The next song in the queue starts loading 20 seconds before the current one ends, so songs follow each other without a gap.
 
 Every command works both as a slash command (`/play`) and as a text command with the server's prefix (`-play`, by default).
 
@@ -123,6 +125,7 @@ cp .env.example .env
 | `XAI_API_KEY` | bot | From [console.x.ai](https://console.x.ai) |
 | `DP_SPOTIFY_CLIENT_ID`, `DP_SPOTIFY_CLIENT_SECRET` | Spotify links (optional) | From the [Spotify developer dashboard](https://developer.spotify.com/dashboard) |
 | `DEBUG_PLAYER` | (optional) | `true` logs discord-player's debug output |
+| `YOUTUBE_PROXY` | fast YouTube on a server (optional) | A proxy on a home connection, see [Streaming through a home connection](#streaming-through-a-home-connection) |
 | `BETTER_AUTH_URL` | web | The URL you open the dashboard on |
 | `BETTER_AUTH_SECRET` | web | Any long random string (`openssl rand -base64 32`) |
 
@@ -161,13 +164,82 @@ Every push to `main` builds three images with GitHub Actions and pushes them to 
 - `klyndre-bot`
 - `klyndre-web`: the dashboard, on port 3000.
 
-`docker-compose.yml` runs them together with Postgres, and is written for [Coolify](https://coolify.io), which generates the `SERVICE_*` values (database user, password and auth secret). Set `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `XAI_API_KEY`, `BETTER_AUTH_URL` and optionally the Spotify variables. On start, `migrate` runs once against the database, and `bot` and `web` start after it succeeds.
+`docker-compose.yml` runs them together with Postgres, and is written for [Coolify](https://coolify.io), which generates the `SERVICE_*` values (database user, password and auth secret). Set `DISCORD_TOKEN`, `DISCORD_CLIENT_ID`, `XAI_API_KEY`, `BETTER_AUTH_URL` and optionally the Spotify variables and `YOUTUBE_PROXY`. On start, `migrate` runs once against the database, and `bot` and `web` start after it succeeds.
 
 To create the first dashboard account in production, open a shell in the `web` container and run:
 
 ```sh
 pnpm create:user you@example.com 'a-long-password' --admin
 ```
+
+### How YouTube is played
+
+YouTube treats a server's datacenter IP far more strictly than a home connection. From a server, the fast way of streaming gets no audio at all, and the only way that works is yt-dlp with cookies, which takes about 9 seconds a song (YouTube makes it wait out the video's ad before serving any audio). From a home connection, the fast way starts a song in about 0.1 seconds.
+
+So for each song the bot tries, in order:
+
+1. **home**: the fast way, through a proxy on a home connection. Only when `YOUTUBE_PROXY` is set.
+2. **adaptive**: the fast way, straight from wherever the bot runs. Works when that's a home connection, such as in development.
+3. **yt-dlp**, with the cookies: slow, but works from the server.
+4. **sabr**: a last resort.
+
+A way that fails twice in a row is tried last for the next 30 minutes, so a blocked way doesn't slow down every song. The log shows which way played each song and how long it took, for example `[music] home streamed "..." (140ms)`.
+
+To see what works from a machine, run this in the `bot` container (or in `apps/bot` locally):
+
+```sh
+pnpm youtube:diag
+```
+
+It prints the machine's public IP (and the home connection's, when `YOUTUBE_PROXY` is set), which YouTube clients the fast way can stream from there, and a timeline of where yt-dlp spends its time.
+
+### Streaming through a home connection
+
+The bot keeps running on the server, and only its YouTube traffic goes through a machine at home. The two machines are connected with [Tailscale](https://tailscale.com), and the home machine runs a small HTTP proxy that only the server can reach. A song is about 4MB, so a normal home connection handles it easily.
+
+When the home machine is off or unreachable, a song waits 3 seconds for it and then plays the slow way, and after two misses the bot stops trying home first for 30 minutes. So music keeps working, just slower to start.
+
+**1. Tailscale on the server.** On the server itself, not in a container (containers reach Tailscale addresses through the host):
+
+```sh
+curl -fsSL https://tailscale.com/install.sh | sh
+sudo tailscale up
+tailscale ip -4   # the server's Tailscale IP
+```
+
+**2. Tailscale and the proxy on the home machine.** On NixOS, add this to the configuration, with the server's Tailscale IP from step 1:
+
+```nix
+services.tailscale.enable = true;
+
+services.tinyproxy = {
+  enable = true;
+  settings = {
+    Listen = null; # every interface; the firewall below only opens it on Tailscale
+    Port = 8888;
+    Allow = [ "100.x.y.z" ]; # the server's Tailscale IP
+  };
+};
+networking.firewall.interfaces.tailscale0.allowedTCPPorts = [ 8888 ];
+```
+
+Then:
+
+```sh
+sudo nixos-rebuild switch
+sudo tailscale up
+tailscale ip -4   # the home machine's Tailscale IP
+```
+
+The home machine has to stay on and awake, so turn off suspend on it if it has that.
+
+**3. Point the bot at it.** In Coolify, set this on the bot and redeploy:
+
+```
+YOUTUBE_PROXY=http://<home machine's Tailscale IP>:8888
+```
+
+**4. Check it.** Run `pnpm youtube:diag` in the `bot` container. `home ip` should be the home connection's address, and the first block, *through the home proxy*, should say `VISIONOS ok`. Once songs play, the log says `[music] home streamed`.
 
 ## Working on it
 
@@ -176,6 +248,7 @@ pnpm typecheck                              # typecheck all packages
 pnpm --filter @klyndre/web check            # biome lint + format check
 pnpm --filter @klyndre/db studio            # browse the database
 pnpm --filter @klyndre/bot test:prompt ...  # try the chat prompt outside Discord
+pnpm --filter @klyndre/bot youtube:diag     # what YouTube streaming works from this machine
 ```
 
 **Changing the schema.** In development, `pnpm dev` pushes the schema straight to the database. For production, generate a migration and commit it; the `migrate` image applies it on the next deploy:
