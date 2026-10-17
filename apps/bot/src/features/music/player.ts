@@ -2,12 +2,12 @@ import { DefaultExtractors, SpotifyExtractor } from "@discord-player/extractor";
 import { onSecretChange } from "@klyndre/config/listen";
 import type { Client } from "discord.js";
 import { Player, useMainPlayer } from "discord-player";
-import { YoutubeExtractor } from "discord-player-youtubei";
 
 import { env } from "#/env";
 import { registerAnnouncements } from "#/features/music/announcements";
 import { CustomSpotifyExtractor } from "#/features/music/extractors/spotify";
 import {
+	CustomYoutubeExtractor,
 	loadCookies,
 	youtubeOptions,
 } from "#/features/music/extractors/youtube";
@@ -49,7 +49,7 @@ async function reloadYoutubeCookies() {
 	cookies = latest;
 
 	const player = useMainPlayer();
-	await player.extractors.unregister(YoutubeExtractor.identifier);
+	await player.extractors.unregister(CustomYoutubeExtractor.identifier);
 	await registerYoutube(player);
 	console.log("[music] Reloaded the YouTube cookies");
 }
@@ -59,7 +59,7 @@ async function reloadYoutubeCookies() {
 // place instead of bridging spotify tracks after soundcloud
 async function registerYoutube(player: Player) {
 	const youtube = await player.extractors.register(
-		YoutubeExtractor,
+		CustomYoutubeExtractor,
 		youtubeOptions(cookies),
 	);
 	if (youtube) youtube.priority = 2;

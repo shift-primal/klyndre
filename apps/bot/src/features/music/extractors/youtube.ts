@@ -4,10 +4,23 @@ import { join } from "node:path";
 import { PassThrough, type Readable } from "node:stream";
 
 import { getSecret } from "@klyndre/config";
-import type { Track } from "discord-player";
 import {
+	type ExtractorSearchContext,
+	Playlist,
+	QueryType,
+	Track,
+} from "discord-player";
+import {
+	buildPlaylistUrl,
+	buildTracks,
+	buildVideoUrl,
+	getInnertube,
+	getSearchContext,
+	getVideo,
 	getVideoId,
-	type YoutubeExtractor,
+	isTrackLikeNode,
+	runWithSearchContext,
+	YoutubeExtractor,
 	type YoutubeOptions,
 } from "discord-player-youtubei";
 import {
@@ -33,6 +46,9 @@ function cookieHeader(cookies: string) {
 	}
 	return pairs.join("; ");
 }
+
+const reason = (error: unknown) =>
+	error instanceof Error ? error.message : error;
 
 type Opener = (
 	videoId: string,
@@ -141,17 +157,22 @@ export function youtubeOptions(cookies: string): YoutubeOptions {
 		cookie: hasCookies ? cookieHeader(cookies) : undefined,
 		async createStream(track, ext) {
 			const videoId = getVideoId(track.url);
+			const started = performance.now();
+			const elapsed = () => `${Math.round(performance.now() - started)}ms`;
 			for (const [name, open] of methods) {
 				let audio: Readable | undefined;
 				try {
 					audio = await open(videoId, track, ext);
-					return await firstAudio(audio);
+					const stream = await firstAudio(audio);
+					console.log(
+						`[music] ${name} streamed "${track.title}" (${elapsed()})`,
+					);
+					return stream;
 				} catch (error) {
 					audio?.destroy();
-					const reason = error instanceof Error ? error.message : error;
 					console.warn(
-						`[music] ${name} couldn't stream "${track.title}":`,
-						reason,
+						`[music] ${name} couldn't stream "${track.title}" (${elapsed()}):`,
+						reason(error),
 					);
 				}
 			}
@@ -160,4 +181,148 @@ export function youtubeOptions(cookies: string): YoutubeOptions {
 			throw new Error(`Couldn't stream "${track.title}" from YouTube`);
 		},
 	};
+}
+
+// every shape of link people paste: watch, youtu.be, shorts, live, embed, and
+// the m. and music. hosts. null when it isn't a YouTube link
+function parseLink(query: string) {
+	let url: URL;
+	try {
+		url = new URL(query.trim());
+	} catch {
+		return null;
+	}
+	const host = url.hostname.replace(/^(www|m|music)\./, "");
+	if (host !== "youtube.com" && host !== "youtu.be") return null;
+
+	const [first, second] = url.pathname.split("/").filter(Boolean);
+	let videoId: string | null = null;
+	if (host === "youtu.be") videoId = first ?? null;
+	else if (first === "watch") videoId = url.searchParams.get("v");
+	else if (["shorts", "live", "embed"].includes(first ?? "")) {
+		videoId = second ?? null;
+	}
+	return { videoId, listId: url.searchParams.get("list") };
+}
+
+interface LockupLike {
+	type: string;
+	metadata?: {
+		metadata?: {
+			metadata_rows?: { metadata_parts?: { text?: { text?: string } }[] }[];
+		};
+	};
+	content_image?: { overlays?: { badges?: { text?: string }[] }[] };
+}
+
+// playlists now list their videos as LockupViews, which the extractor only
+// reads the title from. The channel is the first metadata line and the length
+// is a badge on the thumbnail
+function fillFromLockup(track: Track, node: unknown) {
+	const lockup = node as LockupLike;
+	if (lockup.type !== "LockupView") return;
+
+	track.author ||=
+		lockup.metadata?.metadata?.metadata_rows?.[0]?.metadata_parts?.[0]?.text
+			?.text ?? "";
+	track.duration ||=
+		lockup.content_image?.overlays
+			?.flatMap((overlay) => overlay.badges ?? [])
+			.map((badge) => badge.text ?? "")
+			.find((text) => /^\d+(:\d\d)+$/.test(text)) ?? "";
+}
+
+async function loadPlaylist(listId: string, ext: YoutubeExtractor) {
+	let page = await (await getInnertube()).getPlaylist(listId);
+	const playlist = new Playlist(ext.context.player, {
+		title: page.info.title ?? "Unknown playlist",
+		thumbnail: page.info.thumbnails?.at(0)?.url ?? "",
+		description: page.info.description ?? "",
+		author: {
+			name: page.info.author?.name ?? "",
+			url: page.info.author?.url ?? "",
+		},
+		tracks: [],
+		id: listId,
+		url: buildPlaylistUrl(listId),
+		type: "playlist",
+		source: "youtube",
+		rawPlaylist: page,
+	});
+
+	for (;;) {
+		const nodes = page.videos.filter(isTrackLikeNode);
+		const tracks = buildTracks(nodes, ext, playlist);
+		for (const [index, track] of tracks.entries()) {
+			fillFromLockup(track, nodes[index]);
+		}
+		playlist.tracks.push(...tracks);
+		if (!page.has_continuation) return playlist;
+		page = await page.getContinuation();
+	}
+}
+
+interface OEmbed {
+	title?: string;
+	author_name?: string;
+	thumbnail_url?: string;
+}
+
+// when YouTube bot-checks our session the video details come back empty (the
+// "Played: []" lines). oEmbed is public and still has the title and channel
+async function loadVideo(videoId: string, ext: YoutubeExtractor) {
+	const track = await getVideo(videoId, ext).catch((error: unknown) => {
+		console.warn(`[music] Couldn't get details for ${videoId}:`, reason(error));
+		return null;
+	});
+	if (track?.title) return track;
+
+	const url = buildVideoUrl(videoId);
+	const res = await fetch(
+		`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(url)}`,
+	);
+	if (!res.ok) {
+		if (track) return track;
+		throw new Error(`Couldn't find the YouTube video ${videoId}`);
+	}
+	const details = (await res.json()) as OEmbed;
+	return new Track(ext.context.player, {
+		title: details.title,
+		author: details.author_name,
+		thumbnail: details.thumbnail_url,
+		url,
+		requestedBy: getSearchContext().requestedBy,
+		source: "youtube",
+		queryType: QueryType.YOUTUBE_VIDEO,
+	});
+}
+
+export class CustomYoutubeExtractor extends YoutubeExtractor {
+	override async handle(query: string, context: ExtractorSearchContext) {
+		const link = parseLink(query);
+		if (!link) return super.handle(query, context);
+		const { videoId, listId } = link;
+
+		return runWithSearchContext(context, async () => {
+			// a mix (RD...) is a radio YouTube made from the video, not a playlist
+			// anyone picked, so a link into one plays just the video. A private
+			// or broken playlist falls back to the video too
+			if (listId && !(videoId && listId.startsWith("RD"))) {
+				try {
+					const playlist = await loadPlaylist(listId, this);
+					if (playlist.tracks.length > 0) {
+						return this.createResponse(playlist, playlist.tracks);
+					}
+				} catch (error) {
+					if (!videoId) throw error;
+					console.warn(
+						`[music] Couldn't load playlist ${listId}:`,
+						reason(error),
+					);
+				}
+			}
+			if (!videoId) return this.createResponse(null, []);
+			return this.createResponse(null, [await loadVideo(videoId, this)]);
+		});
+	}
 }
