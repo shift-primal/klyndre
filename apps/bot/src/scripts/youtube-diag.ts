@@ -7,11 +7,16 @@ import { createAdaptiveStream } from "simple-ytdl-core";
 import youtubeDl from "youtube-dl-exec";
 import { Innertube, type Types } from "youtubei.js";
 
-import "#/env";
-import { cookieHeader, loadCookies } from "#/features/music/extractors/youtube";
+import { env } from "#/env";
+import {
+	cookieHeader,
+	loadCookies,
+	proxiedFetch,
+} from "#/features/music/extractors/youtube";
 
 // shows, on the machine it runs on, which YouTube clients adaptive can stream
-// from and where yt-dlp spends its time, with and without the cookies. Usage:
+// from (and through the home proxy, when YOUTUBE_PROXY is set) and where
+// yt-dlp spends its time, with and without the cookies. Usage:
 // pnpm youtube:diag [cookies.txt], the cookies from the database otherwise
 
 const VIDEO = "X9CsK_nuqdE";
@@ -37,18 +42,28 @@ const message = (error: unknown) =>
 	(error instanceof Error ? error.message : String(error)).slice(0, 100);
 
 console.log(`cookies: ${header ? header.split("; ").length : "none"}`);
-console.log(
-	"public ip:",
-	await fetch("https://api.ipify.org")
+const publicIp = (through: typeof fetch = fetch) =>
+	through("https://api.ipify.org")
 		.then((res) => res.text())
-		.catch(message),
-);
+		.catch(message);
+console.log("public ip:", await publicIp());
 
-async function adaptive(cookie: string | undefined) {
+async function adaptive(cookie: string | undefined, proxy?: string) {
+	const label = `${cookie ? "with" : "without"} cookies${proxy ? " through the home proxy" : ""}`;
 	const start = performance.now();
-	const yt = await Innertube.create({ retrieve_player: true, cookie });
+	let yt: Innertube;
+	try {
+		yt = await Innertube.create({
+			retrieve_player: true,
+			cookie,
+			fetch: proxy ? proxiedFetch(proxy) : undefined,
+		});
+	} catch (error) {
+		console.log(`\n== adaptive ${label}: no session (${message(error)})`);
+		return;
+	}
 	console.log(
-		`\n== adaptive ${cookie ? "with" : "without"} cookies (session ${since(start)}, logged in: ${yt.session.logged_in})`,
+		`\n== adaptive ${label} (session ${since(start)}, logged in: ${yt.session.logged_in})`,
 	);
 	for (const client of CLIENTS) {
 		const tried = performance.now();
@@ -101,6 +116,10 @@ async function ytdlp(withCookies: boolean) {
 	await dl.catch(() => {});
 }
 
+if (env.YOUTUBE_PROXY) {
+	console.log("home ip:", await publicIp(proxiedFetch(env.YOUTUBE_PROXY)));
+	await adaptive(header || undefined, env.YOUTUBE_PROXY);
+}
 if (header) await adaptive(header);
 await adaptive(undefined);
 if (header) await ytdlp(true);

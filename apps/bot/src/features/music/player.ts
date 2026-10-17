@@ -12,6 +12,7 @@ import {
 	youtubeOptions,
 } from "#/features/music/extractors/youtube";
 import { registerLagLog } from "#/features/music/lag";
+import { registerPreload } from "#/features/music/preload";
 import { registerQueueSaving } from "#/features/music/saved-queues";
 import { registerMusicButtons } from "#/features/music/ui/interactions";
 
@@ -32,6 +33,7 @@ export async function setupPlayer(client: Client) {
 	registerQueueSaving(player);
 	registerMusicButtons(client);
 	registerLagLog(player);
+	registerPreload(player);
 
 	if (env.DEBUG_PLAYER) {
 		player.events.on("debug", (_queue, message) =>

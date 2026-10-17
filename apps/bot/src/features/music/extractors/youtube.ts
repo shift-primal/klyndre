@@ -27,8 +27,11 @@ import {
 	createAdaptiveStreamMultiStep,
 	createSabrStream,
 } from "simple-ytdl-core";
+import { ProxyAgent } from "undici";
 import youtubeDl from "youtube-dl-exec";
 import { Innertube } from "youtubei.js";
+
+import { env } from "#/env";
 
 const COOKIE_DOMAIN = /(^|\.)(youtube|google)\.com$/;
 const COOKIE_COPY = join(tmpdir(), "yt-cookies.txt");
@@ -105,15 +108,25 @@ function ytdlp(cookiePath: string | undefined): Opener {
 	};
 }
 
-// adaptive streams through a YouTube session of its own. Now and then a session
-// comes out where every audio request gets a 403 and stays that way, which
-// sent every song to yt-dlp until a restart. So a failure swaps in a fresh
-// session (~1s) and tries once more. Started right away so the first song
-// doesn't wait for it
-function adaptive(cookie: string | undefined): Opener {
+// sends every request through the proxy. YouTube ties each audio link to the
+// IP that asked for it, so the audio has to come through the same way
+export function proxiedFetch(proxy: string): typeof fetch {
+	const dispatcher = new ProxyAgent(proxy);
+	return (input, init) => fetch(input, { ...init, dispatcher } as RequestInit);
+}
+
+// adaptive streams through a YouTube session of its own, made at startup so the
+// first song doesn't wait for it. A failed stream drops the session, so the
+// next song starts on a fresh one
+function adaptive(cookie: string | undefined, proxy?: string): Opener {
+	const through = proxy ? proxiedFetch(proxy) : undefined;
 	let session: Promise<Innertube> | undefined;
 	const fresh = () => {
-		const created = Innertube.create({ retrieve_player: true, cookie });
+		const created = Innertube.create({
+			retrieve_player: true,
+			cookie,
+			fetch: through,
+		});
 		session = created;
 		created.catch(() => {
 			if (session === created) session = undefined;
@@ -126,9 +139,9 @@ function adaptive(cookie: string | undefined): Opener {
 		const used = session ?? fresh();
 		try {
 			return await createAdaptiveStreamMultiStep(await used, videoId);
-		} catch {
-			const next = session === used ? fresh() : (session ?? fresh());
-			return createAdaptiveStreamMultiStep(await next, videoId);
+		} catch (error) {
+			if (session === used) session = undefined;
+			throw error;
 		}
 	};
 }
@@ -169,6 +182,51 @@ function firstAudio(audio: Readable) {
 	});
 }
 
+// a method with a time limit is cut off when it runs over (an offline home
+// connection just hangs), and whatever it hands back afterwards is closed
+async function firstAudioWithin(
+	open: () => Promise<Readable>,
+	timeoutMs: number | undefined,
+) {
+	let audio: Readable | undefined;
+	let gaveUp = false;
+	const attempt = open().then((opened) => {
+		audio = opened;
+		if (gaveUp) opened.destroy();
+		return firstAudio(opened);
+	});
+	let timer: NodeJS.Timeout | undefined;
+	const overtime = new Promise<never>((_, reject) => {
+		if (!timeoutMs) return;
+		timer = setTimeout(() => {
+			gaveUp = true;
+			reject(new Error(`no audio within ${timeoutMs}ms`));
+		}, timeoutMs);
+	});
+	try {
+		return await Promise.race([attempt, overtime]);
+	} catch (error) {
+		audio?.destroy();
+		attempt.then(
+			(stream) => stream.destroy(),
+			() => {},
+		);
+		throw error;
+	} finally {
+		clearTimeout(timer);
+	}
+}
+
+interface Method {
+	name: string;
+	open: Opener;
+	timeoutMs?: number;
+}
+
+// streaming through home takes well under a second. When it hasn't started by
+// this, home is offline and the song moves on to the next method
+const HOME_TIMEOUT_MS = 3000;
+
 export function youtubeOptions(cookies: string): YoutubeOptions {
 	const hasCookies = Boolean(cookies.trim());
 	if (hasCookies) {
@@ -177,17 +235,32 @@ export function youtubeOptions(cookies: string): YoutubeOptions {
 		console.warn("No YouTube cookies set, playing YouTube without cookies");
 	}
 
-	// fastest first: adaptive streams in-process (~0.1s to audio), yt-dlp
-	// spawns python and with cookies sits out the video's pre-roll ad (5-10s),
-	// sabr is slowest
-	const methods: [string, Opener][] = [
-		["adaptive", adaptive(hasCookies ? cookieHeader(cookies) : undefined)],
-		["yt-dlp", ytdlp(hasCookies ? COOKIE_COPY : undefined)],
-		["sabr", (id, _track, ext) => createSabrStream(innertube(ext), id)],
+	// fastest first. adaptive streams in-process (~0.1s to audio), but YouTube
+	// won't give the server's datacenter IP any audio that way, so it goes
+	// through the home proxy when there is one. yt-dlp works from the server
+	// with cookies but spawns python and sits out the video's pre-roll ad
+	// (5-10s), sabr is slowest
+	const cookie = hasCookies ? cookieHeader(cookies) : undefined;
+	const methods: Method[] = [
+		...(env.YOUTUBE_PROXY
+			? [
+					{
+						name: "home",
+						open: adaptive(cookie, env.YOUTUBE_PROXY),
+						timeoutMs: HOME_TIMEOUT_MS,
+					},
+				]
+			: []),
+		{ name: "adaptive", open: adaptive(cookie) },
+		{ name: "yt-dlp", open: ytdlp(hasCookies ? COOKIE_COPY : undefined) },
+		{
+			name: "sabr",
+			open: (id, _track, ext) => createSabrStream(innertube(ext), id),
+		},
 	];
 
 	const failures = new Map<string, { inARow: number; lastAt: number }>();
-	const resting = ([name]: [string, Opener]) => {
+	const resting = ({ name }: Method) => {
 		const failed = failures.get(name);
 		return (
 			!!failed &&
@@ -215,18 +288,18 @@ export function youtubeOptions(cookies: string): YoutubeOptions {
 				...methods.filter((method) => !resting(method)),
 				...methods.filter(resting),
 			];
-			for (const [name, open] of order) {
-				let audio: Readable | undefined;
+			for (const { name, open, timeoutMs } of order) {
 				try {
-					audio = await open(videoId, track, ext);
-					const stream = await firstAudio(audio);
+					const stream = await firstAudioWithin(
+						() => open(videoId, track, ext),
+						timeoutMs,
+					);
 					failures.delete(name);
 					console.log(
 						`[music] ${name} streamed "${track.title}" (${elapsed()})`,
 					);
 					return stream;
 				} catch (error) {
-					audio?.destroy();
 					console.warn(
 						`[music] ${name} couldn't stream "${track.title}" (${elapsed()}):`,
 						reason(error),

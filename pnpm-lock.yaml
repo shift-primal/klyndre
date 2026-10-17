@@ -230,6 +230,9 @@ importers:
       simple-ytdl-core:
         specifier: ^1.1.1
         version: 1.1.1(@noble/hashes@2.4.0)
+      undici:
+        specifier: ^7.30.0
+        version: 7.30.0
       youtube-dl-exec:
         specifier: ^3.1.15
         version: 3.1.15(debug@4.4.3)
