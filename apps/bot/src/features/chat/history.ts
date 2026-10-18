@@ -73,11 +73,18 @@ const belongsInChat = (
 	return answered !== undefined && !answered.content.startsWith(prefix);
 };
 
-const replyChain = async (message: Message<true>, limit: number) => {
+// messages already fetched are looked up there first, each fetch is a round trip to discord
+const replyChain = async (
+	message: Message<true>,
+	limit: number,
+	known: ReadonlyMap<string, Message<true>>,
+) => {
 	const chain: Message<true>[] = [];
 	let current = message;
 	while (chain.length < limit && current.reference?.messageId) {
-		const parent = await current.fetchReference().catch(() => null);
+		const parent =
+			known.get(current.reference.messageId) ??
+			(await current.fetchReference().catch(() => null));
 		if (!parent) break;
 		chain.push(parent);
 		current = parent;
@@ -105,14 +112,14 @@ export const buildHistory = async (
 	]);
 
 	const { messages: channelMessages } = message.channel;
-	const [before, after, chain] = await Promise.all([
+	const [before, after] = await Promise.all([
 		channelMessages.fetch({ limit: historyLimit, before: message.id }),
 		// anything sent while this reply waited its turn
 		laterLimit > 0
 			? channelMessages.fetch({ limit: laterLimit, after: message.id })
 			: null,
-		replyChain(message, threadLimit),
 	]);
+	const chain = await replyChain(message, threadLimit, before);
 	const botId = message.client.user.id;
 
 	const earlier = [...before.values()];
