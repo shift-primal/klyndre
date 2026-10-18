@@ -320,7 +320,7 @@ Avoid ones that repeat {name}'s recent replies (the same opener, phrases, jokes 
 	character: {
 		fillBlanks: meta(
 			true,
-			"Make up anything left blank the first time it chats, and save it here. Clear a field to have it made up again",
+			"Make up anything left blank when it next chats, and save it here (it takes a few seconds, so it's there from the reply after). Clear a field to have it made up again",
 		),
 		basics: meta("", "Age, gender, what they look like", "textarea"),
 		home: meta(

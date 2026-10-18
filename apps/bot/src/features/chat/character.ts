@@ -15,8 +15,10 @@ type Character = Settings<"character">;
 
 const SKETCHES = 5;
 
-// made up once per guild at a time, every reply waiting on it gets the same one
-const filling = new Map<string, Promise<Character>>();
+// made up once per guild at a time, and not again for a while after it fails
+const RETRY_FILL_AFTER_MS = 10 * 60_000;
+const filling = new Set<string>();
+const failedAt = new Map<string, number>();
 
 // a text field or a list, as its non-empty lines
 const itemsOf = (value: string | string[]) =>
@@ -137,26 +139,36 @@ async function fillBlanks(
 			return [[trait, isList(trait) ? items : items.join(" ")]];
 		}),
 	);
-	if (Object.keys(made).length === 0) return character;
+	if (Object.keys(made).length === 0) throw new Error("made up nothing");
+	await setSettings(guildId, "character", made);
 	console.log(`[character] made up ${Object.keys(made).join(", ")}`);
-	return setSettings(guildId, "character", made);
 }
 
-// the character sheet, made up and saved first when fields are blank
+// for scripts: makes up the blank fields now and waits for it
+export async function fillCharacter(guildId: string, botName: string) {
+	const character = await getSettings(guildId, "character");
+	if (character.fillBlanks && blanksOf(character).length > 0) {
+		await fillBlanks(guildId, botName, character);
+	}
+}
+
+// blank fields get made up in the background, it takes several seconds, so the
+// reply that set it off goes without them and the next ones have them
 export async function loadCharacter(guildId: string, botName: string) {
 	const character = await getSettings(guildId, "character");
-	if (!character.fillBlanks || blanksOf(character).length === 0) {
-		return character;
+	const due =
+		character.fillBlanks &&
+		blanksOf(character).length > 0 &&
+		!filling.has(guildId) &&
+		Date.now() - (failedAt.get(guildId) ?? 0) >= RETRY_FILL_AFTER_MS;
+	if (due) {
+		filling.add(guildId);
+		fillBlanks(guildId, botName, character)
+			.catch((error) => {
+				failedAt.set(guildId, Date.now());
+				console.error("[character]", error);
+			})
+			.finally(() => filling.delete(guildId));
 	}
-
-	const running = filling.get(guildId);
-	if (running) return running;
-	const next = fillBlanks(guildId, botName, character)
-		.catch((error) => {
-			console.error("[character]", error);
-			return character;
-		})
-		.finally(() => filling.delete(guildId));
-	filling.set(guildId, next);
-	return next;
+	return character;
 }

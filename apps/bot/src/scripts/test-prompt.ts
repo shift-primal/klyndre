@@ -8,6 +8,7 @@ import type { ModelMessage } from "ai";
 import { and, eq, inArray } from "drizzle-orm";
 
 import "#/env";
+import { fillCharacter } from "#/features/chat/character";
 import { loadLore, selectLore } from "#/features/chat/lore";
 import {
 	firstWord,
@@ -199,6 +200,9 @@ const turn: Turn = {
 	canSkip:
 		!values.mention && mayStayQuiet(last.text, recent, chat.skipMaxWords),
 };
+
+// the live bot makes them up in the background, here every run should have them
+await fillCharacter(guildId, values.name);
 
 // lore is picked again every run, the random fill changes like it would live
 const instructionsFor = () =>

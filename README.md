@@ -50,7 +50,7 @@ None of these channels are set up out of the box, so add them under _Channels_ i
 
 It writes a few replies at once (3 by default) and sends the best one: the code scores them for repeating its own recent replies, and the model picks the most natural of the rest. Each line of a reply is sent as its own message, up to 3.
 
-It has a **character**: a sheet with its age, home, job, family, friends, weekly routine, tastes, opinions, flaws and a few stories, which goes in every prompt. Anything left blank on the sheet is made up the first time it chats and saved under _Character_ in the dashboard. Edit any of it there, or clear a field to have it made up again.
+It has a **character**: a sheet with its age, home, job, family, friends, weekly routine, tastes, opinions, flaws and a few stories, which goes in every prompt. Anything left blank on the sheet is made up in the background the first time it chats (ready from its next reply) and saved under _Character_ in the dashboard. Edit any of it there, or clear a field to have it made up again.
 
 It remembers things in two ways:
 
