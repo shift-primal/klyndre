@@ -36,7 +36,14 @@ export const defaults = {
 			500,
 			"Longest reply the model may write, in tokens",
 		),
-		singleLineReplies: meta(true, "Cut replies down to their first line"),
+		maxMessages: meta(
+			3,
+			"Most messages one reply is sent as. Each line it writes is its own message, and lines past this are dropped (1 keeps only the first line)",
+		),
+		followUpTypingMs: advanced(
+			45,
+			"Typing time per character before each message after the first, so they don't all land at once (0 to send them right away)",
+		),
 		lowercaseReplies: meta(true, "Send replies in all lowercase"),
 		stripEmojis: meta(true, "Remove emojis from replies"),
 		turnWaitLimitMs: advanced(
@@ -149,7 +156,8 @@ Don't offer help unless asked, and don't end messages with questions just to kee
 		),
 		format: meta(
 			`Chat messages are shown as "Name: text". Reply with only your message, no name prefix.
-Write like a person in a Discord chat: one short line, all lowercase, no emojis, no headings or bullet lists.`,
+Write like a person in a Discord chat: all lowercase, no emojis, no headings or bullet lists.
+Keep it short: almost always one line, often just a few words. Only now and then, when you really have more to say, write two or three short lines instead; each line is sent as its own message.`,
 			"How replies are laid out, at the end of the prompt",
 			"prompt",
 		),

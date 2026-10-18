@@ -264,7 +264,9 @@ const results = await pool(runs, concurrency, async (): Promise<Result> => {
 			composed.retried && "retried",
 			composed.finishReason === "length" && "token cap",
 		].filter(Boolean);
-		const text = composed.outcome === "quiet" ? "" : composed.text;
+		// each line is its own message in discord
+		const text =
+			composed.outcome === "quiet" ? "" : composed.text.replaceAll("\n", " / ");
 		console.log(
 			`${String(number).padStart(4)}  ${text}${tags.length ? `  [${tags.join(", ")}]` : ""}`,
 		);
@@ -294,6 +296,9 @@ const average = (pick: (result: Result) => number) =>
 console.log(
 	`avg ${average((result) => result.text.split(/\s+/).length)} words, ${average((result) => result.seconds)}s per reply`,
 );
+
+const multi = replies.filter((result) => result.text.includes("\n")).length;
+if (multi) console.log(`sent as several messages: ${of(multi)}`);
 
 const retried = results.filter((result) => result.retried).length;
 if (retried) console.log(`opener retries: ${retried}/${runs}`);

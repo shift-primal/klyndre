@@ -1,11 +1,18 @@
 import { getSettings } from "@klyndre/config";
 import type { FilePart, ModelMessage } from "ai";
-import { type Message, MessageReferenceType } from "discord.js";
+import { type Message, MessageFlags, MessageReferenceType } from "discord.js";
 
 import type { People } from "#/features/chat/profiles";
 
 // the reset command replies with this, and history stops reading at it
 export const RESET_MARKER = "🧹 Chat history cleared.";
+
+// chat messages that don't reply to anything (the extra lines of a reply) are sent
+// silent, which tells them apart from other bot messages like music announcements
+export const CHAT_FLAGS = MessageFlags.SuppressNotifications;
+
+const isUnansweringChat = (msg: Message<true>) =>
+	!msg.reference && msg.flags.has(CHAT_FLAGS);
 
 const isReset = (msg: Message<true>, botId: string) =>
 	msg.author.id === botId && msg.content.startsWith(RESET_MARKER);
@@ -60,6 +67,7 @@ const belongsInChat = (
 ) => {
 	if (msg.author.id !== botId) return !msg.content.startsWith(prefix);
 	if (msg.interactionMetadata) return false;
+	if (isUnansweringChat(msg)) return true;
 
 	const answered = byId.get(msg.reference?.messageId ?? "");
 	return answered !== undefined && !answered.content.startsWith(prefix);
@@ -152,8 +160,20 @@ export const buildHistory = async (
 			? `${nameOf(msg)} ${replyLabel.replaceAll("{name}", target)}`
 			: nameOf(msg);
 	};
-	const messages = kept
-		.map(({ msg, images }) =>
+	// a reply sent as several messages goes back together, one line each
+	const messages: ModelMessage[] = [];
+	for (const { msg, images } of [...kept].reverse()) {
+		const previous = messages.at(-1);
+		if (
+			msg.author.id === botId &&
+			isUnansweringChat(msg) &&
+			previous?.role === "assistant" &&
+			typeof previous.content === "string"
+		) {
+			previous.content += `\n${msg.cleanContent.trim()}`;
+			continue;
+		}
+		messages.push(
 			toModelMessage(
 				msg,
 				botId,
@@ -161,8 +181,8 @@ export const buildHistory = async (
 				speakerOf(msg),
 				piledUp && msg === message ? answeringMarker : "",
 			),
-		)
-		.reverse();
+		);
+	}
 
 	// what people said, without name prefixes, so a chatter's own name doesn't count
 	const human = kept.filter(({ msg }) => !msg.author.bot);

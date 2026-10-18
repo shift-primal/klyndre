@@ -4,6 +4,8 @@ import { getSettings } from "@klyndre/config";
 import { type FinishReason, generateText, type ModelMessage } from "ai";
 import type { Message, MessageMentionOptions } from "discord.js";
 
+import { CHAT_FLAGS } from "#/features/chat/history";
+
 import { chatModel } from "#/features/chat/model";
 import {
 	firstWord,
@@ -15,6 +17,9 @@ import { type ChatContext, chatContext } from "#/features/chat/prompt";
 import { chunk } from "#/lib/utils/text";
 
 const DISCORD_MAX_LENGTH = 2000;
+// per message after the first, however long it is
+const FOLLOW_UP_TYPING_MIN_MS = 600;
+const FOLLOW_UP_TYPING_MAX_MS = 4_000;
 
 const allowedMentions: MessageMentionOptions = {
 	parse: [],
@@ -34,16 +39,24 @@ const cleanReply = (botName: string, text: string) => {
 const EMOJI =
 	/<a?:\w+:\d+>|\p{Extended_Pictographic}|\p{Emoji_Modifier}|\u200d|\ufe0f|\u20e3/gu;
 
+// one line per message, so the reply comes back joined with newlines
 async function styleReply(guildId: string, text: string) {
-	const { singleLineReplies, lowercaseReplies, stripEmojis } =
-		await getSettings(guildId, "chat");
-	let reply = text;
-	if (stripEmojis) reply = reply.replace(EMOJI, "");
-	if (singleLineReplies) {
-		reply = reply.split("\n").find((line) => line.trim()) ?? "";
-	}
-	if (lowercaseReplies) reply = reply.toLowerCase();
-	return reply.replace(/[ \t]{2,}/g, " ").trim();
+	const { maxMessages, lowercaseReplies, stripEmojis } = await getSettings(
+		guildId,
+		"chat",
+	);
+	const style = (line: string) => {
+		let styled = line;
+		if (stripEmojis) styled = styled.replace(EMOJI, "");
+		if (lowercaseReplies) styled = styled.toLowerCase();
+		return styled.replace(/[ \t]{2,}/g, " ").trim();
+	};
+	return text
+		.split("\n")
+		.map(style)
+		.filter(Boolean)
+		.slice(0, maxMessages)
+		.join("\n");
 }
 
 const hasImages = (history: ModelMessage[]) =>
@@ -224,8 +237,30 @@ export async function sendReply(
 			}
 		}
 
-		for (const part of chunk(reply, DISCORD_MAX_LENGTH)) {
+		const [first = "", ...rest] = reply.split("\n");
+		for (const part of chunk(first, DISCORD_MAX_LENGTH)) {
 			await message.reply({ content: part, allowedMentions });
+		}
+
+		// the rest go out like someone typing a few messages in a row
+		const { followUpTypingMs } = await getSettings(message.guildId, "chat");
+		for (const line of rest) {
+			if (followUpTypingMs > 0) {
+				await showTyping();
+				await sleep(
+					Math.min(
+						FOLLOW_UP_TYPING_MAX_MS,
+						Math.max(FOLLOW_UP_TYPING_MIN_MS, line.length * followUpTypingMs),
+					),
+				);
+			}
+			for (const part of chunk(line, DISCORD_MAX_LENGTH)) {
+				await message.channel.send({
+					content: part,
+					allowedMentions,
+					flags: CHAT_FLAGS,
+				});
+			}
 		}
 		return reply;
 	} finally {
