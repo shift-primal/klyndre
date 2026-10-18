@@ -50,7 +50,14 @@ export class CustomSpotifyExtractor extends SpotifyExtractor {
 			);
 			throw new Error(`No close Spotify match for "${query}"`);
 		}
-		return this.createResponse(null, rankResults(query, result.tracks));
+		const ranked = rankResults(query, result.tracks);
+		const [top] = ranked;
+		if (top) {
+			console.log(
+				`[music] Spotify matched "${query}" to "${top.author} - ${top.title}"`,
+			);
+		}
+		return this.createResponse(null, ranked);
 	}
 
 	override async activate() {

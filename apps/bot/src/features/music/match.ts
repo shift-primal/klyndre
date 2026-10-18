@@ -101,28 +101,23 @@ function closeTo(word: string, other: string) {
 	return (previous[other.length] ?? Infinity) <= allowed;
 }
 
-// share of the wanted words found in the text. Numbers (a year, a part 2)
-// count for half, and a word glued together ("acdc") still finds "ac dc"
+// share of the wanted words found in the text. A word glued together
+// ("acdc") still finds "ac dc". Numbers have to be exact, since the year is
+// often what sets a song apart ("Victory Road 2018" isn't "Victory Road 2017")
 export function coverage(wanted: string, text: string) {
 	const needed = words(wanted).filter((word) => !FILLER.has(word));
 	if (needed.length === 0) return 1;
 	const have = words(text);
 	const glued = have.join("");
 
-	let total = 0;
-	let found = 0;
-	for (const word of needed) {
-		const weight = /^\d+$/.test(word) ? 0.5 : 1;
-		total += weight;
-		if (
-			have.includes(word) ||
-			have.some((other) => closeTo(word, other)) ||
-			(word.length >= 4 && glued.includes(word))
-		) {
-			found += weight;
-		}
-	}
-	return found / total;
+	const found = needed.filter((word) =>
+		/^\d+$/.test(word)
+			? have.includes(word)
+			: have.includes(word) ||
+				have.some((other) => closeTo(word, other)) ||
+				(word.length >= 4 && glued.includes(word)),
+	);
+	return found.length / needed.length;
 }
 
 const has = (text: string, phrase: string) =>
