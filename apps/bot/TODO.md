@@ -25,7 +25,7 @@
 10. [x] music: move / reorder queue · small
 11. [x] music: undo / restart last queue on accidental /stop · small-medium
 12. [x] /help pages per feature (-help music, -help chat) · small
-13. [ ] anti-repetition: best-of-n + judge, reused word / opener filters (wait until it repeats itself, costs n calls) · medium
+13. [x] anti-repetition: best-of-n + judge, reused word / opener filters (wait until it repeats itself, costs n calls) · medium
 14. [ ] humour dials: taste distill + sliders in the web app · large
 15. [ ] scenarios, (minigame, gives u a scenario, u have to answer, the bot judges your answer) · large
 

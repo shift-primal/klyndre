@@ -18,6 +18,7 @@ import {
 import type { People } from "#/features/chat/profiles";
 import { buildInstructions, type ChatContext } from "#/features/chat/prompt";
 import { type Composed, composeReply } from "#/features/chat/reply";
+import { isLoop } from "#/features/chat/variety";
 import { words } from "#/lib/utils/text";
 
 const USAGE = `Usage: pnpm test:prompt <scenario file | message> [options]
@@ -28,6 +29,7 @@ const USAGE = `Usage: pnpm test:prompt <scenario file | message> [options]
                           (the only guild with settings, if there is one)
   -m, --model <id>        instead of the guild's chat model
   -t, --temperature <n>   instead of the guild's temperature
+      --candidates <n>    replies to choose between, instead of the guild's
       --at <time>         what time it is for the bot, like "2026-10-17 23:40"
       --name <name>       the bot's name in the prompt (klyndre)
       --mention           as if it was tagged, so it never stays quiet
@@ -54,6 +56,7 @@ const { values, positionals } = parseArgs({
 		model: { type: "string", short: "m" },
 		temperature: { type: "string", short: "t" },
 		at: { type: "string" },
+		candidates: { type: "string" },
 		name: { type: "string", default: "klyndre" },
 		mention: { type: "boolean", default: false },
 		lore: { type: "boolean", default: true },
@@ -157,22 +160,6 @@ async function pool<T>(count: number, limit: number, task: () => Promise<T>) {
 	return results;
 }
 
-// a run of words straight after the same run, like "ok bro ok bro"
-function isLoop(text: string) {
-	const w = text.split(/\s+/);
-	for (let size = 2; size * 2 <= w.length; size++) {
-		for (let i = 0; i + size * 2 <= w.length; i++) {
-			if (
-				w.slice(i, i + size).join(" ") ===
-				w.slice(i + size, i + size * 2).join(" ")
-			) {
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
 if (values.help || !positionals[0]) {
 	console.log(USAGE);
 	process.exit(values.help ? 0 : 1);
@@ -181,6 +168,7 @@ if (values.help || !positionals[0]) {
 const runs = number("runs", values.runs) ?? 20;
 const concurrency = number("concurrency", values.concurrency) ?? 6;
 const temperature = number("temperature", values.temperature);
+const candidates = number("candidates", values.candidates);
 const now = values.at ? new Date(values.at) : undefined;
 if (now && Number.isNaN(now.getTime())) {
 	throw new Error(`--at is not a time: ${values.at}`);
@@ -232,6 +220,7 @@ console.log(
 		`guild ${guildId}`,
 		`model ${values.model ?? chat.model}`,
 		`temperature ${temperature ?? chat.temperature}`,
+		`best of ${candidates ?? chat.candidates}${chat.judgeCandidates ? " (judged)" : ""}`,
 		now && `at ${now.toLocaleString("en-GB", { timeZone: chat.timeZone })}`,
 		`lore ${loreEntries.length > 0 ? `${loreEntries.length} ${loreEntries.length === 1 ? "entry" : "entries"}` : "off"}`,
 		`profiles ${values.profiles && chat.profilesEnabled ? "on" : "off"}`,
@@ -255,6 +244,7 @@ const results = await pool(runs, concurrency, async (): Promise<Result> => {
 		{
 			model: values.model,
 			temperature,
+			candidates,
 		},
 	);
 	const number = ++printed;
@@ -262,6 +252,7 @@ const results = await pool(runs, concurrency, async (): Promise<Result> => {
 		const tags = [
 			composed.outcome !== "reply" && composed.outcome,
 			composed.retried && "retried",
+			composed.candidates > 1 && `of ${composed.candidates}`,
 			composed.finishReason === "length" && "token cap",
 		].filter(Boolean);
 		// each line is its own message in discord

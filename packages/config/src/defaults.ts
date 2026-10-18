@@ -70,9 +70,17 @@ export const defaults = {
 			3,
 			"Fewest words a new fact about someone must quote from their own messages, or their notes stay as they are",
 		),
+		candidates: meta(
+			3,
+			"Replies it writes for each message, at the same time, to send the best one. More repeats itself less, but costs a call each (1 to turn this off)",
+		),
+		judgeCandidates: meta(
+			true,
+			"Have the model pick the most natural of the candidates (one more call). Off, the least repetitive one is sent",
+		),
 		openerMemory: advanced(
 			5,
-			"Its own recent replies it checks for repeated openers (0 to turn this off)",
+			"Its own recent replies it checks for repeated openers and phrases (0 to turn this off)",
 		),
 		openerRepeatLimit: advanced(
 			2,
@@ -234,6 +242,13 @@ Save only lasting, new information. Skip anything already known, even when it's 
 Use a name as the key when there is one, otherwise a short description ("the cousin"). Reuse existing keys exactly. When something listed under a description gets a name, save it under the name and set replaces to the old key. Write the full updated notes for every key you change, keeping what still holds, at most 40 words, in the chat's language.
 Return only entries that are new or changed. If nothing is, return an empty list.`,
 			"Instructions for the model that updates the lore",
+			"prompt",
+		),
+		judgeInstructions: advanced(
+			`You pick which of a few candidate replies {name}, a chat bot playing a regular member of a Discord server, should send next.
+Pick the one that sounds most like a real person in this chat: it fits what was just said, it's as long as the moment needs, and it says something of its own.
+Avoid ones that repeat {name}'s recent replies (the same opener, phrases, jokes or topics), sound like an AI or an assistant, or ask a question just to keep the chat going.`,
+			"Instructions for the model that picks the best candidate reply ({name} is the bot's name)",
 			"prompt",
 		),
 		repeatedOpenerNote: advanced(

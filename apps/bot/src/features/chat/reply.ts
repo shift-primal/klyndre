@@ -14,6 +14,7 @@ import {
 	type Turn,
 } from "#/features/chat/openers";
 import { type ChatContext, chatContext } from "#/features/chat/prompt";
+import { pickReply } from "#/features/chat/variety";
 import { chunk } from "#/lib/utils/text";
 
 const DISCORD_MAX_LENGTH = 2000;
@@ -128,15 +129,23 @@ export type Composed = {
 	// of the generation it came from, "length" means it hit the token cap
 	finishReason?: FinishReason;
 	retried: boolean;
+	// replies it chose between
+	candidates: number;
 };
 
+// overrides for trying things out, like GenerateOptions
+type ComposeOptions = GenerateOptions & { candidates?: number };
+
+type Draft = { text: string; finishReason: FinishReason };
+
 export async function composeReply(
-	{ guildId, botName }: Pick<ChatContext, "guildId" | "botName">,
+	context: Pick<ChatContext, "guildId" | "botName">,
 	instructions: string,
 	history: ModelMessage[],
 	turn: Turn,
-	options: GenerateOptions = {},
+	options: ComposeOptions = {},
 ): Promise<Composed> {
+	const { guildId, botName } = context;
 	const [
 		{
 			fallbackReply,
@@ -145,18 +154,19 @@ export async function composeReply(
 			skipNote,
 			repeatedOpenerNote,
 		},
-		{ openerRepeatLimit },
+		chat,
 	] = await Promise.all([
 		getSettings(guildId, "personality"),
 		getSettings(guildId, "chat"),
 	]);
-	const habit = openerHabit(turn.recent, openerRepeatLimit);
+	const habit = openerHabit(turn.recent, chat.openerRepeatLimit);
 	const note = [
 		habit && repeatedOpenerNote.replaceAll("{word}", habit),
 		turn.canSkip && skipMarker && skipNote.replaceAll("{marker}", skipMarker),
 	]
 		.filter(Boolean)
 		.join(" ");
+	const none = { retried: false, candidates: 0 };
 	const fallback = { text: fallbackReply, outcome: "fallback" } as const;
 
 	// text is null when the content filter stopped it
@@ -175,32 +185,81 @@ export async function composeReply(
 	};
 
 	try {
-		const first = await attempt();
-		if (first.text === null) {
-			return { text: contentFilterReply, outcome: "filtered", retried: false };
-		}
-		let { text, finishReason } = first;
+		// several at once take as long as one, and give it something to choose from
+		const count = options.candidates ?? chat.candidates;
+		const settled = await Promise.allSettled(
+			Array.from({ length: count }, attempt),
+		);
+		const done = settled.flatMap((result) =>
+			result.status === "fulfilled" ? [result.value] : [],
+		);
+		const failed = settled.find((result) => result.status === "rejected");
+		if (done.length === 0 && failed) throw failed.reason;
 
+		const allowed = done.filter((draft): draft is Draft => draft.text !== null);
+		if (allowed.length === 0) {
+			return { text: contentFilterReply, outcome: "filtered", ...none };
+		}
+		const skips = allowed.filter((draft) => isSkip(draft.text, skipMarker));
+		const drafts = allowed.filter(
+			(draft) => draft.text && !isSkip(draft.text, skipMarker),
+		);
+
+		// staying quiet when most of them would
+		if (turn.canSkip && skips.length > 0 && skips.length >= drafts.length) {
+			return {
+				text: "",
+				outcome: "quiet",
+				...none,
+				candidates: allowed.length,
+			};
+		}
+
+		// when every one opens the usual way, one more try might not
 		const retried =
-			habit !== null && firstWord(text) === habit && !isSkip(text, skipMarker);
+			habit !== null &&
+			drafts.length > 0 &&
+			drafts.every((draft) => firstWord(draft.text) === habit);
 		if (retried) {
 			const retry = await attempt().catch(() => null);
-			if (retry?.text) ({ text, finishReason } = retry);
+			if (retry?.text && !isSkip(retry.text, skipMarker)) {
+				drafts.push(retry as Draft);
+			}
 		}
-		const tried = { finishReason, retried };
+		if (drafts.length === 0) return { ...fallback, ...none, retried };
 
-		if (!text) return { ...fallback, ...tried };
-		if (isSkip(text, skipMarker)) {
-			return turn.canSkip
-				? { text: "", outcome: "quiet", ...tried }
-				: { ...fallback, ...tried };
-		}
 		// an emoji-only reply styles down to nothing, which means stay quiet
-		const styled = await styleReply(guildId, text);
-		return { text: styled, outcome: styled ? "reply" : "quiet", ...tried };
+		const styled = (
+			await Promise.all(
+				drafts.map(async (draft) => ({
+					text: await styleReply(guildId, draft.text),
+					finishReason: draft.finishReason,
+				})),
+			)
+		).filter((draft) => draft.text);
+		const tried = { retried, candidates: styled.length };
+		if (styled.length === 0) return { text: "", outcome: "quiet", ...tried };
+
+		const index = await pickReply(
+			context,
+			history,
+			turn.recent,
+			habit,
+			styled.map(({ text, finishReason }) => ({
+				text,
+				hitCap: finishReason === "length",
+			})),
+		);
+		const chosen = styled[index] ?? styled[0];
+		return {
+			text: chosen?.text ?? "",
+			outcome: "reply",
+			finishReason: chosen?.finishReason,
+			...tried,
+		};
 	} catch (error) {
 		console.error("[chat]", error);
-		return { ...fallback, retried: false };
+		return { ...fallback, ...none };
 	}
 }
 
@@ -223,7 +282,7 @@ export async function sendReply(
 			retried,
 		} = await composeReply(chatContext(message), instructions, history, turn);
 		if (retried)
-			console.log("[chat] retried a reply that opened the usual way");
+			console.log("[chat] retried, every reply opened the usual way");
 		if (outcome === "quiet") {
 			console.log(`[chat] stayed quiet after "${message.cleanContent}"`);
 		}
