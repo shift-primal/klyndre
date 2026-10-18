@@ -41,7 +41,7 @@ export const defaults = {
 			"Most messages one reply is sent as. Each line it writes is its own message, and lines past this are dropped (1 keeps only the first line)",
 		),
 		followUpTypingMs: advanced(
-			45,
+			20,
 			"Typing time per character before each message after the first, so they don't all land at once (0 to send them right away)",
 		),
 		lowercaseReplies: meta(true, "Send replies in all lowercase"),

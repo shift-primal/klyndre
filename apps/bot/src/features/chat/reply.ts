@@ -23,8 +23,8 @@ import { chunk } from "#/lib/utils/text";
 
 const DISCORD_MAX_LENGTH = 2000;
 // per message after the first, however long it is
-const FOLLOW_UP_TYPING_MIN_MS = 600;
-const FOLLOW_UP_TYPING_MAX_MS = 4_000;
+const FOLLOW_UP_TYPING_MIN_MS = 400;
+const FOLLOW_UP_TYPING_MAX_MS = 2_000;
 
 const allowedMentions: MessageMentionOptions = {
 	parse: [],
