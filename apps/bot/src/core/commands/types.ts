@@ -18,6 +18,8 @@ export interface CommandContext {
 	args: string;
 	defer(): Promise<void>;
 	reply(content: string, options?: ReplyOptions): Promise<void>;
+	// for a command with nothing to say: clears a slash command's "thinking..."
+	dismiss(): Promise<void>;
 }
 
 export interface CommandArgument {
