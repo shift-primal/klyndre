@@ -23,6 +23,7 @@ interface PromptParts {
 		server: string;
 		channel: string;
 		now: string;
+		language: string;
 	};
 }
 
@@ -84,7 +85,7 @@ const buildParts = async (
 			selfLoreGuidance,
 			serverLoreGuidance,
 		},
-		{ timeZone, profilesEnabled },
+		{ timeZone, language, profilesEnabled },
 		character,
 	] = await Promise.all([
 		getSettings(guildId, "personality"),
@@ -113,6 +114,7 @@ const buildParts = async (
 			server,
 			channel,
 			now: describeTime(now, timeZone),
+			language,
 		},
 	};
 };
@@ -138,9 +140,15 @@ const render = ({
 		persona,
 		section("Who you are", characterGuidance, character),
 		rules,
-		`## Context
-You are ${context.botName} in the server "${context.server}", channel #${context.channel}.
-Current time: ${context.now}.`,
+		[
+			"## Context",
+			`You are ${context.botName} in the server "${context.server}", channel #${context.channel}.`,
+			`Current time: ${context.now}.`,
+			context.language &&
+				`You always write in ${context.language}, whatever language a message is in.`,
+		]
+			.filter(Boolean)
+			.join("\n"),
 		section("People in the chat", peopleGuidance, people),
 		section("Your life", selfLoreGuidance, selfLore),
 		section("Server lore", serverLoreGuidance, serverLore),

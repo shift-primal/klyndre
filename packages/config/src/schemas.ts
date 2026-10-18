@@ -42,6 +42,7 @@ export const chatSettings = z.object({
 	lowercaseReplies: field(z.boolean(), d.chat.lowercaseReplies),
 	stripEmojis: field(z.boolean(), d.chat.stripEmojis),
 	turnWaitLimitMs: field(count, d.chat.turnWaitLimitMs),
+	language: field(z.string(), d.chat.language),
 	timeZone: field(timeZone, d.chat.timeZone),
 	profilesEnabled: field(z.boolean(), d.chat.profilesEnabled),
 	profileUpdateEvery: field(z.int().min(1), d.chat.profileUpdateEvery),

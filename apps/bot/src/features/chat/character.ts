@@ -13,6 +13,8 @@ import { chatModel } from "#/features/chat/model";
 
 type Character = Settings<"character">;
 
+const SKETCHES = 5;
+
 // made up once per guild at a time, every reply waiting on it gets the same one
 const filling = new Map<string, Promise<Character>>();
 
@@ -32,33 +34,78 @@ export const describeCharacter = (character: Character) =>
 		.map((trait) => `- ${label(trait)}: ${character[trait].trim()}`)
 		.join("\n");
 
+const sketchSchema = z.object({
+	sketches: z
+		.array(z.string())
+		.describe(
+			"One line each: age, where they live, what they do, their situation in life",
+		),
+});
+
+// asked for one person, a model makes up nearly the same one every time,
+// so it sketches a few different ones and one is picked at random
+async function sketch(model: string, instructions: string, known: string) {
+	const { output } = await generateText({
+		model: chatModel(model),
+		instructions,
+		messages: [
+			{
+				role: "user",
+				content: [
+					known && `## Already decided\n${known}`,
+					`Sketch ${SKETCHES} people who could be this, as different from each other as you can: different ages, places, jobs and lives. Avoid the first idea that comes to mind.`,
+				]
+					.filter(Boolean)
+					.join("\n\n"),
+			},
+		],
+		output: Output.object({ schema: sketchSchema }),
+		temperature: 1.2,
+	});
+	const sketches = output.sketches.filter((line) => line.trim());
+	return sketches[Math.floor(Math.random() * sketches.length)] ?? "";
+}
+
 async function fillBlanks(
 	guildId: string,
 	botName: string,
 	character: Character,
 ) {
 	const blanks = blanksOf(character);
-	const { model, timeZone } = await getSettings(guildId, "chat");
+	const { model, timeZone, language } = await getSettings(guildId, "chat");
 	const known = describeCharacter(character);
+	const instructions = character.fillInstructions
+		.replaceAll("{name}", botName)
+		.replaceAll("{timeZone}", timeZone)
+		.replaceAll("{language}", language || "the main language spoken there");
 	const schema = z.object(
 		Object.fromEntries(
 			blanks.map((trait) => [trait, z.string().describe(describeOf(trait))]),
 		),
 	);
+	// with most of the sheet filled in, that already says who they are
+	const base =
+		blanks.length > characterTraits.length / 2
+			? await sketch(model, instructions, known)
+			: "";
 
 	const { output } = await generateText({
 		model: chatModel(model),
-		instructions: character.fillInstructions
-			.replaceAll("{name}", botName)
-			.replaceAll("{timeZone}", timeZone),
+		instructions,
 		messages: [
 			{
 				role: "user",
-				content: `## Already filled in\n${known || "(nothing yet)"}\n\n## Make up\n${blanks.join(", ")}`,
+				content: [
+					`## Already filled in\n${known || "(nothing yet)"}`,
+					base && `## Based on\n${base}`,
+					`## Make up\n${blanks.join(", ")}`,
+				]
+					.filter(Boolean)
+					.join("\n\n"),
 			},
 		],
 		output: Output.object({ schema }),
-		temperature: 1.1,
+		temperature: 1,
 	});
 
 	const made = Object.fromEntries(

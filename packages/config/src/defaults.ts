@@ -50,6 +50,10 @@ export const defaults = {
 			30_000,
 			"How long a reply waits for the one before it in the same channel",
 		),
+		language: meta(
+			"",
+			"Language it always writes in, like Norwegian. Its character's slang is made up in it too. Empty to match the chat",
+		),
 		timeZone: advanced(
 			"Europe/Oslo",
 			"Time zone for the date and time in the prompt (IANA name, like Europe/Oslo)",
@@ -312,8 +316,9 @@ Return only entries that are new or changed. If nothing is, return an empty list
 Fill in only the fields asked for, and stay consistent with the ones already filled in.
 Be specific: real place names, a real job, names for family and friends, actual bands, games and dishes. Give them flaws and gaps, not just cool traits. Keep it everyday, like someone you'd actually know, not a quirky movie character.
 People in the server are likely in the {timeZone} time zone, so they live somewhere that fits.
+Quirks are what they do and say, not how they type; typing style is set elsewhere. Any slang or phrases they use are in {language}.
 Write in English, at most 40 words per field.`,
-			"Instructions for the model that makes up the blank fields ({name} is the bot's name, {timeZone} the chat time zone)",
+			"Instructions for the model that makes up the blank fields ({name} is the bot's name, {timeZone} the chat time zone, {language} the chat language)",
 			"prompt",
 		),
 	},
