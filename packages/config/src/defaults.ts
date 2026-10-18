@@ -111,7 +111,7 @@ export const defaults = {
 			"Longest message (in words) it may stay quiet after, longer ones always get an answer. It also always answers right after asking something (0 to never stay quiet)",
 		),
 		quietTypingMs: advanced(
-			1_500,
+			800,
 			"When it could have stayed quiet, it only starts typing once it knows it's answering, and types this long before sending (0 to send right away)",
 		),
 		loreEnabled: meta(
