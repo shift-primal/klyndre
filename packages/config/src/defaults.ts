@@ -284,35 +284,47 @@ Return only entries that are new or changed. If nothing is, return an empty list
 			"textarea",
 		),
 		work: meta("", "Job or school, and what they think of it", "textarea"),
-		family: meta("", "Family, with names", "textarea"),
+		family: meta([] as string[], "Family, with names", "list"),
 		friends: meta(
-			"",
+			[] as string[],
 			"Friends and love life outside this server, with names",
-			"textarea",
+			"list",
 		),
 		routine: meta(
 			"",
 			"A normal week: when they work, sleep, train, game and go out",
 			"textarea",
 		),
-		interests: meta("", "Hobbies, and what they know a lot about", "textarea"),
-		tastes: meta("", "Favourite music, games, shows and food", "textarea"),
-		opinions: meta("", "Hot takes and things they'll argue about", "textarea"),
-		dislikes: meta("", "Pet peeves and things they can't stand", "textarea"),
+		interests: meta(
+			[] as string[],
+			"Hobbies, and what they know a lot about",
+			"list",
+		),
+		tastes: meta(
+			[] as string[],
+			"Favourite music, games, shows and food",
+			"list",
+		),
+		opinions: meta(
+			[] as string[],
+			"Hot takes and things they'll argue about",
+			"list",
+		),
+		dislikes: meta(
+			[] as string[],
+			"Pet peeves and things they can't stand",
+			"list",
+		),
 		weaknesses: meta(
-			"",
+			[] as string[],
 			"What they're bad at or know nothing about",
-			"textarea",
+			"list",
 		),
-		quirks: meta(
-			"",
-			"Habits, and how they talk: slang, phrases they overuse",
-			"textarea",
-		),
+		quirks: meta([] as string[], "Habits, and things they say a lot", "list"),
 		stories: meta(
-			"",
-			"A few things that happened to them, stories they can tell",
-			"textarea",
+			[] as string[],
+			"Things that happened to them, stories they can tell",
+			"list",
 		),
 		fillInstructions: advanced(
 			`Make up a believable, ordinary person for a Discord bot called {name} to play in a group chat, so it has a life to talk about.
@@ -320,7 +332,7 @@ Fill in only the fields asked for, and stay consistent with the ones already fil
 Be specific: real place names, a real job, names for family and friends, actual bands, games and dishes. Give them flaws and gaps, not just cool traits. Keep it everyday, like someone you'd actually know, not a quirky movie character.
 People in the server are likely in the {timeZone} time zone, so they live somewhere that fits.
 Quirks are what they do and say, not how they type; typing style is set elsewhere. Any slang or phrases they use are in {language}.
-Write in English, at most 40 words per field.`,
+Write in English. Text fields are at most 40 words, list fields 2 to 4 short items.`,
 			"Instructions for the model that makes up the blank fields ({name} is the bot's name, {timeZone} the chat time zone, {language} the chat language)",
 			"prompt",
 		),

@@ -1,4 +1,4 @@
-export type Widget = "textChannel" | "role" | "textarea" | "prompt";
+export type Widget = "textChannel" | "role" | "textarea" | "prompt" | "list";
 
 export type Meta<T> = {
 	default: T;

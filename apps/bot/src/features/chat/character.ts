@@ -18,8 +18,17 @@ const SKETCHES = 5;
 // made up once per guild at a time, every reply waiting on it gets the same one
 const filling = new Map<string, Promise<Character>>();
 
+// a text field or a list, as its non-empty lines
+const itemsOf = (value: string | string[]) =>
+	(Array.isArray(value) ? value : [value])
+		.map((item) => item.trim())
+		.filter(Boolean);
+
+const isList = (trait: CharacterTrait) =>
+	characterSettings.shape[trait].meta()?.widget === "list";
+
 const blanksOf = (character: Character) =>
-	characterTraits.filter((trait) => !character[trait].trim());
+	characterTraits.filter((trait) => itemsOf(character[trait]).length === 0);
 
 const describeOf = (trait: CharacterTrait) =>
 	characterSettings.shape[trait].meta()?.description ?? trait;
@@ -27,11 +36,16 @@ const describeOf = (trait: CharacterTrait) =>
 const label = (trait: CharacterTrait) =>
 	trait.charAt(0).toUpperCase() + trait.slice(1);
 
-// "- Work: …" lines for the traits that are filled in
+// "- Work: …" for the traits that are filled in, lists get one line per item below
 export const describeCharacter = (character: Character) =>
 	characterTraits
-		.filter((trait) => character[trait].trim())
-		.map((trait) => `- ${label(trait)}: ${character[trait].trim()}`)
+		.flatMap((trait) => {
+			const items = itemsOf(character[trait]);
+			if (items.length === 0) return [];
+			return isList(trait)
+				? [`- ${label(trait)}:`, ...items.map((item) => `  - ${item}`)]
+				: [`- ${label(trait)}: ${items.join(" ")}`];
+		})
 		.join("\n");
 
 const sketchSchema = z.object({
@@ -80,7 +94,12 @@ async function fillBlanks(
 		.replaceAll("{language}", language || "the main language spoken there");
 	const schema = z.object(
 		Object.fromEntries(
-			blanks.map((trait) => [trait, z.string().describe(describeOf(trait))]),
+			blanks.map((trait) => [
+				trait,
+				isList(trait)
+					? z.array(z.string()).describe(`${describeOf(trait)}, 2 to 4 items`)
+					: z.string().describe(describeOf(trait)),
+			]),
 		),
 	);
 	// with most of the sheet filled in, that already says who they are
@@ -110,8 +129,12 @@ async function fillBlanks(
 
 	const made = Object.fromEntries(
 		blanks.flatMap((trait) => {
-			const value = (output as Record<string, string | undefined>)[trait];
-			return value?.trim() ? [[trait, value.trim()]] : [];
+			const value = (output as Record<string, string | string[] | undefined>)[
+				trait
+			];
+			const items = value === undefined ? [] : itemsOf(value);
+			if (items.length === 0) return [];
+			return [[trait, isList(trait) ? items : items.join(" ")]];
 		}),
 	);
 	if (Object.keys(made).length === 0) return character;

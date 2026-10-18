@@ -12,6 +12,7 @@ import type { ChannelOption, RoleOption } from "#/features/guilds/lib/types";
 import { PresetBar } from "#/features/prompts/components/preset-bar";
 import { isPromptKind } from "#/features/prompts/lib/prompt-kinds";
 import { ChannelPicker } from "#/features/settings/components/channel-picker";
+import { ListField } from "#/features/settings/components/list-field";
 import { RolePicker } from "#/features/settings/components/role-picker";
 import { type FieldSpec, sameValue } from "#/features/settings/lib/fields";
 
@@ -97,6 +98,19 @@ const Control = ({
 						/>
 					)}
 				</div>
+			);
+		case "list":
+			return (
+				<ListField
+					id={id}
+					label={spec.label}
+					value={(value as string[]) ?? []}
+					onChange={(next) => {
+						onChange(next);
+						onBlur();
+					}}
+					disabled={disabled}
+				/>
 			);
 		case "channels":
 			return (
