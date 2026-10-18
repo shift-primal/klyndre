@@ -3,6 +3,7 @@ import { Events } from "discord.js";
 import type { Feature } from "#/core/feature";
 import { chatCommands } from "#/features/chat/commands";
 import { handleMessage } from "#/features/chat/handler";
+import { scheduleStarters } from "#/features/chat/starters";
 
 export const chat: Feature = {
 	name: "chat",
@@ -10,5 +11,6 @@ export const chat: Feature = {
 	commands: chatCommands,
 	register(client) {
 		client.on(Events.MessageCreate, (m) => handleMessage(m));
+		scheduleStarters(client);
 	},
 };

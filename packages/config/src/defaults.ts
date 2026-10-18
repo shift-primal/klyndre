@@ -54,6 +54,26 @@ export const defaults = {
 			"",
 			"Language it always writes in, like Norwegian. Its character's slang is made up in it too. Empty to match the chat",
 		),
+		starterQuietMs: meta(
+			3 * 60 * 60_000,
+			"How long a starter channel has to be quiet before it may start a conversation there",
+		),
+		starterMaxPerDay: meta(
+			2,
+			"Most conversations it starts per channel per day",
+		),
+		starterFromHour: advanced(
+			10,
+			"Earliest hour it starts conversations, in the chat time zone",
+		),
+		starterToHour: advanced(
+			23,
+			"Hour it stops starting conversations, in the chat time zone",
+		),
+		starterChance: advanced(
+			0.1,
+			"Chance it starts one at each check (every 10 minutes) once everything else allows it, so it doesn't happen like clockwork",
+		),
 		timeZone: advanced(
 			"Europe/Oslo",
 			"Time zone for the date and time in the prompt (IANA name, like Europe/Oslo)",
@@ -149,6 +169,11 @@ export const defaults = {
 		randomReplyChannelIds: meta(
 			[] as string[],
 			"Channels where it replies now and then",
+			"textChannel",
+		),
+		starterChannelIds: meta(
+			[] as string[],
+			"Channels where it starts a conversation now and then when it's been quiet for a while",
 			"textChannel",
 		),
 		musicChannelIds: meta(
@@ -259,6 +284,11 @@ Avoid ones that repeat {name}'s recent replies (the same opener, phrases, jokes 
 		skipNote: advanced(
 			`if the chat is clearly over (it's just ok, sure or ye, or a goodbye you already answered), reply with only {marker}. if someone answers you or tells you something, reply normally.`,
 			"Note added after the last message saying when it may stay quiet ({marker} is the skip marker). Only added when it wasn't tagged",
+			"textarea",
+		),
+		starterNote: advanced(
+			`it's been quiet in here for {hours}. start a new conversation like you would in a group chat: something from your day, something you've been thinking about, or a question for someone here. don't say that it's been quiet, and only pick up the old conversation if there's a good reason to.`,
+			"Note added after the chat when it starts a conversation ({hours} is how long it's been quiet)",
 			"textarea",
 		),
 		skipMarker: advanced(

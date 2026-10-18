@@ -43,6 +43,11 @@ export const chatSettings = z.object({
 	stripEmojis: field(z.boolean(), d.chat.stripEmojis),
 	turnWaitLimitMs: field(count, d.chat.turnWaitLimitMs),
 	language: field(z.string(), d.chat.language),
+	starterQuietMs: field(count, d.chat.starterQuietMs),
+	starterMaxPerDay: field(count, d.chat.starterMaxPerDay),
+	starterFromHour: field(z.int().min(0).max(23), d.chat.starterFromHour),
+	starterToHour: field(z.int().min(1).max(24), d.chat.starterToHour),
+	starterChance: field(chance, d.chat.starterChance),
 	timeZone: field(timeZone, d.chat.timeZone),
 	profilesEnabled: field(z.boolean(), d.chat.profilesEnabled),
 	profileUpdateEvery: field(z.int().min(1), d.chat.profileUpdateEvery),
@@ -73,6 +78,7 @@ export const chatSettings = z.object({
 export const channelsSettings = z.object({
 	aiChannelIds: field(ids, d.channels.aiChannelIds),
 	randomReplyChannelIds: field(ids, d.channels.randomReplyChannelIds),
+	starterChannelIds: field(ids, d.channels.starterChannelIds),
 	musicChannelIds: field(ids, d.channels.musicChannelIds),
 });
 
@@ -128,6 +134,7 @@ export const personalitySettings = z.object({
 	judgeInstructions: field(z.string().min(1), d.personality.judgeInstructions),
 	repeatedOpenerNote: field(z.string(), d.personality.repeatedOpenerNote),
 	skipNote: field(z.string(), d.personality.skipNote),
+	starterNote: field(z.string().min(1), d.personality.starterNote),
 	skipMarker: field(z.string(), d.personality.skipMarker),
 	fallbackReply: field(z.string(), d.personality.fallbackReply),
 	contentFilterReply: field(z.string(), d.personality.contentFilterReply),

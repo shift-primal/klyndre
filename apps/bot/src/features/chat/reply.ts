@@ -2,7 +2,11 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 import { getSettings } from "@klyndre/config";
 import { type FinishReason, generateText, type ModelMessage } from "ai";
-import type { Message, MessageMentionOptions } from "discord.js";
+import type {
+	GuildTextBasedChannel,
+	Message,
+	MessageMentionOptions,
+} from "discord.js";
 
 import { CHAT_FLAGS } from "#/features/chat/history";
 
@@ -263,6 +267,37 @@ export async function composeReply(
 	}
 }
 
+// one message per line, the first answering replyTo when there is one,
+// the rest like someone typing a few messages in a row
+export async function deliver(
+	channel: GuildTextBasedChannel,
+	text: string,
+	replyTo?: Message<true>,
+) {
+	const { followUpTypingMs } = await getSettings(channel.guildId, "chat");
+	const send = (content: string) =>
+		channel.send({ content, allowedMentions, flags: CHAT_FLAGS });
+
+	const [first = "", ...rest] = text.split("\n");
+	for (const part of chunk(first, DISCORD_MAX_LENGTH)) {
+		await (replyTo
+			? replyTo.reply({ content: part, allowedMentions })
+			: send(part));
+	}
+	for (const line of rest) {
+		if (followUpTypingMs > 0) {
+			await channel.sendTyping().catch(() => {});
+			await sleep(
+				Math.min(
+					FOLLOW_UP_TYPING_MAX_MS,
+					Math.max(FOLLOW_UP_TYPING_MIN_MS, line.length * followUpTypingMs),
+				),
+			);
+		}
+		for (const part of chunk(line, DISCORD_MAX_LENGTH)) await send(part);
+	}
+}
+
 export async function sendReply(
 	message: Message<true>,
 	instructions: string,
@@ -296,31 +331,7 @@ export async function sendReply(
 			}
 		}
 
-		const [first = "", ...rest] = reply.split("\n");
-		for (const part of chunk(first, DISCORD_MAX_LENGTH)) {
-			await message.reply({ content: part, allowedMentions });
-		}
-
-		// the rest go out like someone typing a few messages in a row
-		const { followUpTypingMs } = await getSettings(message.guildId, "chat");
-		for (const line of rest) {
-			if (followUpTypingMs > 0) {
-				await showTyping();
-				await sleep(
-					Math.min(
-						FOLLOW_UP_TYPING_MAX_MS,
-						Math.max(FOLLOW_UP_TYPING_MIN_MS, line.length * followUpTypingMs),
-					),
-				);
-			}
-			for (const part of chunk(line, DISCORD_MAX_LENGTH)) {
-				await message.channel.send({
-					content: part,
-					allowedMentions,
-					flags: CHAT_FLAGS,
-				});
-			}
-		}
+		await deliver(message.channel, reply, message);
 		return reply;
 	} finally {
 		clearInterval(typing);

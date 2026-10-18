@@ -44,7 +44,11 @@ The bot replies when:
 - someone writes in an **AI channel** (it answers every message there),
 - someone writes in a **random-reply channel** (it answers now and then, 25% of messages by default).
 
+In a **starter channel**, it also starts a conversation now and then once the channel has been quiet for a while (3 hours by default, at most twice a day, between 10:00 and 23:00), as long as the last message there isn't its own.
+
 None of these channels are set up out of the box, so add them under _Channels_ in the dashboard. When a message is short and the conversation seems over ("ok", "ye"), it can choose to stay quiet unless it was tagged.
+
+It writes a few replies at once (3 by default) and sends the best one: the code scores them for repeating its own recent replies, and the model picks the most natural of the rest. Each line of a reply is sent as its own message, up to 3.
 
 It has a **character**: a sheet with its age, home, job, family, friends, weekly routine, tastes, opinions, flaws and a few stories, which goes in every prompt. Anything left blank on the sheet is made up the first time it chats and saved under _Character_ in the dashboard. Edit any of it there, or clear a field to have it made up again.
 
