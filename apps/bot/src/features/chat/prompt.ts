@@ -43,6 +43,8 @@ export type ChatContext = {
 	botName: string;
 	server: string;
 	channel: string;
+	// when it is for the bot, scripts set it to try other times of day
+	now?: Date;
 };
 
 export const chatContext = (message: Message<true>): ChatContext => ({
@@ -52,8 +54,20 @@ export const chatContext = (message: Message<true>): ChatContext => ({
 	channel: message.channel.name,
 });
 
+// "Saturday 18 October 2026, 23:41", the weekday and hour matter as much as the date
+const describeTime = (date: Date, timeZone: string) =>
+	date.toLocaleString("en-GB", {
+		timeZone,
+		weekday: "long",
+		day: "numeric",
+		month: "long",
+		year: "numeric",
+		hour: "2-digit",
+		minute: "2-digit",
+	});
+
 const buildParts = async (
-	{ guildId, botName, server, channel }: ChatContext,
+	{ guildId, botName, server, channel, now = new Date() }: ChatContext,
 	people: People,
 	lore: SelectedLore,
 ): Promise<PromptParts> => {
@@ -90,7 +104,7 @@ const buildParts = async (
 			botName,
 			server,
 			channel,
-			now: new Date().toLocaleDateString("en-GB", { timeZone }),
+			now: describeTime(now, timeZone),
 		},
 	};
 };

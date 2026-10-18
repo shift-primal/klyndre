@@ -70,14 +70,17 @@ async function generate(
 	history: ModelMessage[],
 	options: GenerateOptions,
 ) {
-	const { model, maxReplyTokens } = await getSettings(guildId, "chat");
+	const { model, temperature, maxReplyTokens } = await getSettings(
+		guildId,
+		"chat",
+	);
 	const run = (messages: ModelMessage[]) =>
 		generateText({
 			model: chatModel(options.model ?? model),
 			instructions,
 			messages,
 			maxOutputTokens: maxReplyTokens,
-			temperature: options.temperature,
+			temperature: options.temperature ?? temperature,
 		});
 
 	try {

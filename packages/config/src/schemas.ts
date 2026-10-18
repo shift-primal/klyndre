@@ -28,6 +28,7 @@ const timeZone = z.string().refine(isTimeZone, "Unknown time zone");
 
 export const chatSettings = z.object({
 	model: field(z.string().min(1), d.chat.model),
+	temperature: field(z.number().min(0).max(2), d.chat.temperature),
 	randomReplyChance: field(chance, d.chat.randomReplyChance),
 	replyToMentionsAnywhere: field(z.boolean(), d.chat.replyToMentionsAnywhere),
 	historyLimit: field(z.int().min(1).max(100), d.chat.historyLimit),

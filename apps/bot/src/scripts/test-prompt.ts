@@ -27,7 +27,8 @@ const USAGE = `Usage: pnpm test:prompt <scenario file | message> [options]
   -g, --guild <id>        whose settings, lore and profiles to use
                           (the only guild with settings, if there is one)
   -m, --model <id>        instead of the guild's chat model
-  -t, --temperature <n>   instead of the model's default
+  -t, --temperature <n>   instead of the guild's temperature
+      --at <time>         what time it is for the bot, like "2026-10-17 23:40"
       --name <name>       the bot's name in the prompt (klyndre)
       --mention           as if it was tagged, so it never stays quiet
       --no-lore           leave lore out
@@ -52,6 +53,7 @@ const { values, positionals } = parseArgs({
 		guild: { type: "string", short: "g" },
 		model: { type: "string", short: "m" },
 		temperature: { type: "string", short: "t" },
+		at: { type: "string" },
 		name: { type: "string", default: "klyndre" },
 		mention: { type: "boolean", default: false },
 		lore: { type: "boolean", default: true },
@@ -179,6 +181,10 @@ if (values.help || !positionals[0]) {
 const runs = number("runs", values.runs) ?? 20;
 const concurrency = number("concurrency", values.concurrency) ?? 6;
 const temperature = number("temperature", values.temperature);
+const now = values.at ? new Date(values.at) : undefined;
+if (now && Number.isNaN(now.getTime())) {
+	throw new Error(`--at is not a time: ${values.at}`);
+}
 
 const { lines, last } = await loadScenario(positionals[0]);
 const guildId = await resolveGuild();
@@ -188,6 +194,7 @@ const context: ChatContext = {
 	botName: values.name,
 	server: SERVER,
 	channel: CHANNEL,
+	now,
 };
 
 const history = toHistory(lines);
@@ -224,7 +231,8 @@ console.log(
 	[
 		`guild ${guildId}`,
 		`model ${values.model ?? chat.model}`,
-		temperature !== undefined && `temperature ${temperature}`,
+		`temperature ${temperature ?? chat.temperature}`,
+		now && `at ${now.toLocaleString("en-GB", { timeZone: chat.timeZone })}`,
 		`lore ${loreEntries.length > 0 ? `${loreEntries.length} ${loreEntries.length === 1 ? "entry" : "entries"}` : "off"}`,
 		`profiles ${values.profiles && chat.profilesEnabled ? "on" : "off"}`,
 		turn.canSkip && "may stay quiet",

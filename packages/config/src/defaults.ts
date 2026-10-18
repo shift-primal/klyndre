@@ -3,6 +3,10 @@ import { advanced, meta } from "./meta";
 export const defaults = {
 	chat: {
 		model: meta("grok-4.20-non-reasoning", "xAI model used for replies"),
+		temperature: meta(
+			0.9,
+			"How random replies are, from 0 (safe and samey) to 2 (unhinged). Around 0.8 to 1 sounds most like a person",
+		),
 		randomReplyChance: meta(
 			0.25,
 			"Chance of butting in on a message in a random-reply channel without being tagged",
@@ -41,7 +45,7 @@ export const defaults = {
 		),
 		timeZone: advanced(
 			"Europe/Oslo",
-			"Time zone for the date in the prompt (IANA name, like Europe/Oslo)",
+			"Time zone for the date and time in the prompt (IANA name, like Europe/Oslo)",
 		),
 		profilesEnabled: meta(
 			true,
