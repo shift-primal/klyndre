@@ -8,7 +8,7 @@ import type {
 	MessageMentionOptions,
 } from "discord.js";
 
-import { CHAT_FLAGS } from "#/features/chat/history";
+import { CHAT_MARK } from "#/features/chat/history";
 
 import { chatModel } from "#/features/chat/model";
 import {
@@ -276,10 +276,12 @@ export async function deliver(
 ) {
 	const { followUpTypingMs } = await getSettings(channel.guildId, "chat");
 	const send = (content: string) =>
-		channel.send({ content, allowedMentions, flags: CHAT_FLAGS });
+		channel.send({ content: `${content}${CHAT_MARK}`, allowedMentions });
+	// room for the mark on every part
+	const size = DISCORD_MAX_LENGTH - CHAT_MARK.length;
 
 	const [first = "", ...rest] = text.split("\n");
-	for (const part of chunk(first, DISCORD_MAX_LENGTH)) {
+	for (const part of chunk(first, size)) {
 		await (replyTo
 			? replyTo.reply({ content: part, allowedMentions })
 			: send(part));
@@ -294,7 +296,7 @@ export async function deliver(
 				),
 			);
 		}
-		for (const part of chunk(line, DISCORD_MAX_LENGTH)) await send(part);
+		for (const part of chunk(line, size)) await send(part);
 	}
 }
 

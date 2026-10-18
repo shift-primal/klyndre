@@ -1,18 +1,22 @@
 import { getSettings } from "@klyndre/config";
 import type { FilePart, ModelMessage } from "ai";
-import { type Message, MessageFlags, MessageReferenceType } from "discord.js";
+import { type Message, MessageReferenceType } from "discord.js";
 
 import type { People } from "#/features/chat/profiles";
 
 // the reset command replies with this, and history stops reading at it
 export const RESET_MARKER = "🧹 Chat history cleared.";
 
-// chat messages that don't reply to anything (the extra lines of a reply) are sent
-// silent, which tells them apart from other bot messages like music announcements
-export const CHAT_FLAGS = MessageFlags.SuppressNotifications;
+// chat messages that don't reply to anything (the extra lines of a reply, a
+// conversation it starts) end with this zero-width space. Nobody sees it, and it
+// tells them apart from other bot messages like music announcements
+export const CHAT_MARK = "\u200b";
 
 const isUnansweringChat = (msg: Message<true>) =>
-	!msg.reference && msg.flags.has(CHAT_FLAGS);
+	!msg.reference && msg.content.endsWith(CHAT_MARK);
+
+const textOf = (msg: Message<true>) =>
+	msg.cleanContent.replaceAll(CHAT_MARK, "").trim();
 
 const isReset = (msg: Message<true>, botId: string) =>
 	msg.author.id === botId && msg.content.startsWith(RESET_MARKER);
@@ -50,7 +54,7 @@ const toModelMessage = (
 	speaker: string,
 	marker: string,
 ): ModelMessage => {
-	const text = msg.cleanContent.trim();
+	const text = textOf(msg);
 	if (msg.author.id === botId) return { role: "assistant", content: text };
 
 	const line = [`${speaker}: ${text}`, marker].filter(Boolean).join(" ");
@@ -154,7 +158,7 @@ export const buildHistory = async (
 				: imagesOf(msg).slice(0, imageBudget);
 		imageBudget -= images.length;
 
-		if (!msg.cleanContent.trim() && images.length === 0) continue;
+		if (!textOf(msg) && images.length === 0) continue;
 		if (!msg.author.bot) people.set(msg.author.id, nameOf(msg));
 		kept.push({ msg, images });
 	}
@@ -177,7 +181,7 @@ export const buildHistory = async (
 			previous?.role === "assistant" &&
 			typeof previous.content === "string"
 		) {
-			previous.content += `\n${msg.cleanContent.trim()}`;
+			previous.content += `\n${textOf(msg)}`;
 			continue;
 		}
 		messages.push(
