@@ -6,6 +6,9 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { chatModel } from "#/features/chat/model";
+import { botNameOf } from "#/features/chat/prompt";
+import { withoutImages } from "#/features/chat/reply";
+import { linesBy, quotedFrom, transcriptOf } from "#/features/chat/transcript";
 
 export type People = Map<string, string>;
 
@@ -32,9 +35,100 @@ export async function clearNotes(guildId: string, userId: string) {
 	return removed.length > 0;
 }
 
+// who a fact is about; only the first two belong in that person's notes
+const subjects = [
+	"themselves",
+	"their own family or friends",
+	"the bot",
+	"someone else in the chat",
+	"the group",
+] as const;
+const ownSubjects = new Set<string>(subjects.slice(0, 2));
+
 const updateSchema = z.object({
-	people: z.array(z.object({ userId: z.string(), notes: z.string() })),
+	people: z.array(
+		z.object({
+			userId: z.string(),
+			facts: z.array(
+				z.object({
+					quote: z
+						.string()
+						.describe(
+							"Words copied exactly from this person's own lines that the fact comes from",
+						),
+					about: z
+						.enum(subjects)
+						.describe(
+							'Who the quote is about. "you" or "your" in a line aimed at the bot is the bot',
+						),
+					fact: z.string(),
+				}),
+			),
+			notes: z
+				.string()
+				.describe(
+					"The person's full updated notes, the old ones that still hold plus the new facts about them",
+				),
+		}),
+	),
 });
+type Update = z.infer<typeof updateSchema>["people"][number];
+
+// the notes that should change, without saving them, so scripts can try it too
+export async function draftNotes(
+	guildId: string,
+	botName: string,
+	people: People,
+	history: ModelMessage[],
+) {
+	const [{ model, profileEvidenceWords }, { profileInstructions }, notes] =
+		await Promise.all([
+			getSettings(guildId, "chat"),
+			getSettings(guildId, "personality"),
+			loadNotes(guildId, people),
+		]);
+	const current = [...people]
+		.map(
+			([id, name]) => `${id} (${name}): ${notes.get(id) ?? "(no notes yet)"}`,
+		)
+		.join("\n");
+
+	const { output } = await generateText({
+		model: chatModel(model),
+		instructions: `${profileInstructions}\n\n## Current notes\n${current}`,
+		messages: [
+			{
+				role: "user",
+				content: `## Chat\n${transcriptOf(withoutImages(history), botName)}`,
+			},
+		],
+		output: Output.object({ schema: updateSchema }),
+	});
+
+	// a note only changes when one of its new facts is that person's own words about themselves
+	const backedUp = ({ userId, facts }: Update, name: string) => {
+		const lines = linesBy(history, name);
+		const kept = facts.filter(
+			({ quote, about }) =>
+				ownSubjects.has(about) &&
+				quotedFrom(quote, lines, profileEvidenceWords),
+		);
+		for (const { fact, about } of facts.filter((f) => !kept.includes(f))) {
+			console.log(
+				`[profiles] dropped for ${name} (${userId}): ${fact} [${about}]`,
+			);
+		}
+		return kept.length > 0;
+	};
+
+	return output.people.flatMap((update) => {
+		const name = people.get(update.userId);
+		const updated = update.notes.trim();
+		return name && updated && backedUp(update, name)
+			? [{ guildId, userId: update.userId, name, notes: updated }]
+			: [];
+	});
+}
 
 const repliesSinceUpdate = new Map<string, number>();
 const updating = new Set<string>();
@@ -45,7 +139,7 @@ export async function maybeUpdateNotes(
 	history: ModelMessage[],
 ) {
 	const { channelId, guildId } = message;
-	const { model, profilesEnabled, profileUpdateEvery } = await getSettings(
+	const { profilesEnabled, profileUpdateEvery } = await getSettings(
 		guildId,
 		"chat",
 	);
@@ -64,29 +158,10 @@ export async function maybeUpdateNotes(
 	updating.add(channelId);
 
 	try {
-		const [notes, { profileInstructions }] = await Promise.all([
-			loadNotes(guildId, people),
-			getSettings(guildId, "personality"),
-		]);
-		const current = [...people]
-			.map(
-				([id, name]) => `${id} (${name}): ${notes.get(id) ?? "(no notes yet)"}`,
-			)
-			.join("\n");
-
-		const { output } = await generateText({
-			model: chatModel(model),
-			instructions: `${profileInstructions}\n\n## Current notes\n${current}`,
-			messages: history,
-			output: Output.object({ schema: updateSchema }),
-		});
-
-		const rows = output.people.flatMap(({ userId, notes }) => {
-			const name = people.get(userId);
-			return name && notes.trim()
-				? [{ guildId, userId, name, notes: notes.trim() }]
-				: [];
-		});
+		const rows = await draftNotes(guildId, botNameOf(message), people, history);
+		for (const { name, notes } of rows) {
+			console.log(`[profiles] ~ ${name}: ${notes}`);
+		}
 		if (rows.length === 0) return;
 
 		await db

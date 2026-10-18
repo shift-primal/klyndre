@@ -45,6 +45,10 @@ export const chatSettings = z.object({
 	timeZone: field(timeZone, d.chat.timeZone),
 	profilesEnabled: field(z.boolean(), d.chat.profilesEnabled),
 	profileUpdateEvery: field(z.int().min(1), d.chat.profileUpdateEvery),
+	profileEvidenceWords: field(
+		z.int().min(1).max(20),
+		d.chat.profileEvidenceWords,
+	),
 	openerMemory: field(z.int().min(0).max(20), d.chat.openerMemory),
 	openerRepeatLimit: field(count, d.chat.openerRepeatLimit),
 	skipMaxWords: field(z.int().min(0).max(50), d.chat.skipMaxWords),

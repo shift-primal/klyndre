@@ -16,6 +16,7 @@ import { z } from "zod";
 import { chatModel } from "#/features/chat/model";
 import { botNameOf } from "#/features/chat/prompt";
 import { withoutImages } from "#/features/chat/reply";
+import { quotedFrom, textOf, transcriptOf } from "#/features/chat/transcript";
 import { words } from "#/lib/utils/text";
 
 type ChatSettings = Settings<"chat">;
@@ -211,29 +212,17 @@ const updateSchema = z.object({
 });
 type Change = z.infer<typeof updateSchema>["changes"][number];
 
-const phrase = (text: string) =>
-	(text.toLowerCase().match(/[\p{L}\p{N}]+/gu) ?? []).join(" ");
-
 // self lore must be quoted from the bot's own lines, so it can't take on someone else's life
 const backedUp = (
 	change: Change,
 	lines: { bot: string[]; all: string[] },
 	minWords: number,
-) => {
-	const quotes = change.evidence
-		.split(/\n|\.{3}|…/)
-		.map(phrase)
-		.filter(Boolean);
-	const words = quotes.join(" ").split(" ").filter(Boolean).length;
-	if (quotes.length === 0 || words < minWords) return false;
-	const source = (change.kind === "self" ? lines.bot : lines.all).map(phrase);
-	return quotes.every((quote) => source.some((line) => line.includes(quote)));
-};
-
-const textOf = ({ content }: ModelMessage) =>
-	typeof content === "string"
-		? content
-		: content.map((part) => (part.type === "text" ? part.text : "")).join(" ");
+) =>
+	quotedFrom(
+		change.evidence,
+		change.kind === "self" ? lines.bot : lines.all,
+		minWords,
+	);
 
 // the most relevant entries and every locked one in full, the rest by key only
 const describeKnown = (
@@ -412,14 +401,7 @@ export async function maybeUpdateLore(
 			bot: chat.filter((msg) => msg.role === "assistant").map(textOf),
 			all: chat.map(textOf),
 		};
-		const botName = botNameOf(message);
-		const transcript = chat
-			.map((msg) =>
-				msg.role === "assistant"
-					? `${botName} (bot): ${textOf(msg)}`
-					: textOf(msg),
-			)
-			.join("\n");
+		const transcript = transcriptOf(chat, botNameOf(message));
 
 		const [entries, { loreInstructions }] = await Promise.all([
 			loadLore(guildId),

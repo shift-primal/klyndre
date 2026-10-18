@@ -62,6 +62,10 @@ export const defaults = {
 			15,
 			"Replies in a channel between updates to its notes on people",
 		),
+		profileEvidenceWords: advanced(
+			3,
+			"Fewest words a new fact about someone must quote from their own messages, or their notes stay as they are",
+		),
 		openerMemory: advanced(
 			5,
 			"Its own recent replies it checks for repeated openers (0 to turn this off)",
@@ -170,10 +174,21 @@ Don't bring these things up unless the conversation is already about them, and d
 		),
 		profileInstructions: advanced(
 			`You keep short notes on the people in a Discord chat, so a chat bot can recognise them later.
-Note lasting things about each person: interests, habits, opinions, how they write. Skip one-off topics, and skip jokes or reactions about what the bot said.
-Every note is about the person it is filed under. When a note mentions someone else, such as a parent, sibling or friend, always name whose it is ("Sam's dad", never just "dad" or "his dad"), and only note what that person said about them.
-Never write what other people did or said into someone else's notes, and never write it as the bot's own memory ("remembers", "recalls").
-At most 30 words per person. Keep old notes that still hold. Only include people whose notes changed.`,
+The chat is a transcript: every line starts with who wrote it, and the bot's own lines are marked (bot).
+
+Who a line is about:
+- "I", "me" and "my" are whoever wrote that line.
+- "you" and "your" in a line aimed at the bot are the bot, never the writer. "remember when your brother crashed the car" is about the bot's brother. The writer didn't crash anything, and neither did anyone they know.
+- Questions, teasing, jokes and made-up stories are not facts.
+
+What goes where:
+- Notes (this job): lasting things a person says about themselves or their own family and friends, like their job, school, where they live, interests, habits, opinions and how they write.
+- Lore (kept elsewhere, never in notes): the bot's own life, and things the whole group shares like running jokes and events.
+What someone says about the bot, about another person in the chat or about the group is never a fact about them. Neither is anything the bot says about them.
+
+For every new fact, copy the person's own words it comes from into quote, and say who it is about. Skip one-off topics and reactions to what the bot said.
+When a note mentions someone else, name whose it is ("Sam's dad", never just "dad" or "his dad"). Never write notes as the bot's own memory ("remembers", "recalls").
+Notes are at most 30 words per person and keep the old notes that still hold. Only include people with new facts about them.`,
 			"Instructions for the model that updates the notes on people",
 			"prompt",
 		),
@@ -190,14 +205,18 @@ Never force a callback, and don't repeat one you've already made.`,
 			"prompt",
 		),
 		loreInstructions: advanced(
-			`You keep the lore for a chat bot in a Discord server. There are two kinds:
-- self: the life the bot makes up for itself while chatting (friends, family, where it lives, its job, things it has done).
-- server: things the group shares (running jokes, recurring topics, events, places). Never facts about one person; those are kept elsewhere.
+			`You keep the lore for a chat bot in a Discord server. The chat is a transcript: every line starts with who wrote it, and the bot's own lines are marked (bot).
 
-The chat is a transcript, and the bot's own lines are marked (bot).
-Save only lasting, new information. For self: only what the bot's own lines say about its own life. Not what it denies, not insults dressed up as answers, not nonsense it says to dodge a question. What other people say about their own lives is never self lore, even when the bot reacts to it. That includes their parents, family and friends, and what those people did; facts about people are kept elsewhere. For server: a joke or topic that keeps coming back, not a single remark.
+What goes where:
+- self: the life the bot makes up for itself while chatting (friends, family, where it lives, its job, things it has done). Only from what the bot's own lines say about its own life.
+- server: things the whole group shares: running jokes, recurring topics, events several people were part of, places. A joke or topic that keeps coming back, not a single remark.
+- Facts about one person in the chat (their job, family, tastes, what they did) are kept elsewhere, as notes. Never save them as lore of either kind.
+
+Who a line is about: "I", "me" and "my" are whoever wrote that line, and "you" and "your" in a line aimed at the bot are the bot. "remember when your brother crashed the car" is about the bot's brother: it's self lore only if the bot's own lines go along with it, and it's never something the writer did.
+For self, skip what the bot denies, insults dressed up as answers and nonsense it says to dodge a question. What other people say about their own lives is never self lore, even when the bot reacts to it.
+
 For every entry, copy the words it's based on from the chat into evidence, exactly as written.
-Skip anything already known, even when it's said again in other words. Never save an entry again just because it came up.
+Save only lasting, new information. Skip anything already known, even when it's said again in other words. Never save an entry again just because it came up.
 
 Use a name as the key when there is one, otherwise a short description ("the cousin"). Reuse existing keys exactly. When something listed under a description gets a name, save it under the name and set replaces to the old key. Write the full updated notes for every key you change, keeping what still holds, at most 40 words, in the chat's language.
 Return only entries that are new or changed. If nothing is, return an empty list.`,
