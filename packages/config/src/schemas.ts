@@ -73,8 +73,45 @@ export const channelsSettings = z.object({
 	musicChannelIds: field(ids, d.channels.musicChannelIds),
 });
 
+export const characterSettings = z.object({
+	fillBlanks: field(z.boolean(), d.character.fillBlanks),
+	basics: field(z.string(), d.character.basics),
+	home: field(z.string(), d.character.home),
+	work: field(z.string(), d.character.work),
+	family: field(z.string(), d.character.family),
+	friends: field(z.string(), d.character.friends),
+	routine: field(z.string(), d.character.routine),
+	interests: field(z.string(), d.character.interests),
+	tastes: field(z.string(), d.character.tastes),
+	opinions: field(z.string(), d.character.opinions),
+	dislikes: field(z.string(), d.character.dislikes),
+	weaknesses: field(z.string(), d.character.weaknesses),
+	quirks: field(z.string(), d.character.quirks),
+	stories: field(z.string(), d.character.stories),
+	fillInstructions: field(z.string().min(1), d.character.fillInstructions),
+});
+
+// the parts of the character sheet, in the order the prompt shows them
+export const characterTraits = [
+	"basics",
+	"home",
+	"work",
+	"family",
+	"friends",
+	"routine",
+	"interests",
+	"tastes",
+	"opinions",
+	"dislikes",
+	"weaknesses",
+	"quirks",
+	"stories",
+] as const satisfies (keyof z.output<typeof characterSettings>)[];
+export type CharacterTrait = (typeof characterTraits)[number];
+
 export const personalitySettings = z.object({
 	persona: field(z.string(), d.personality.persona),
+	characterGuidance: field(z.string(), d.personality.characterGuidance),
 	rules: field(z.string(), d.personality.rules),
 	format: field(z.string(), d.personality.format),
 	peopleGuidance: field(z.string(), d.personality.peopleGuidance),
@@ -116,6 +153,7 @@ export const moduleSchemas = {
 	chat: chatSettings,
 	channels: channelsSettings,
 	personality: personalitySettings,
+	character: characterSettings,
 	commands: commandsSettings,
 	music: musicSettings,
 } as const;

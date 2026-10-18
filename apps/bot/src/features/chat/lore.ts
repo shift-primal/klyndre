@@ -13,6 +13,7 @@ import type { Message } from "discord.js";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { z } from "zod";
 
+import { describeCharacter } from "#/features/chat/character";
 import { chatModel } from "#/features/chat/model";
 import { botNameOf } from "#/features/chat/prompt";
 import { withoutImages } from "#/features/chat/reply";
@@ -403,11 +404,19 @@ export async function maybeUpdateLore(
 		};
 		const transcript = transcriptOf(chat, botNameOf(message));
 
-		const [entries, { loreInstructions }] = await Promise.all([
+		const [entries, { loreInstructions }, character] = await Promise.all([
 			loadLore(guildId),
 			getSettings(guildId, "personality"),
+			getSettings(guildId, "character"),
 		]);
-		const known = describeKnown(entries, lines.all.join("\n"), settings);
+		const sheet = describeCharacter(character);
+		// the character sheet is known too, so it doesn't get saved again as self lore
+		const known = [
+			sheet && `character sheet (never save any of it as lore):\n${sheet}`,
+			describeKnown(entries, lines.all.join("\n"), settings),
+		]
+			.filter(Boolean)
+			.join("\n\n");
 
 		const { output } = await generateText({
 			model: chatModel(settings.model),

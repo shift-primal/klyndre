@@ -24,7 +24,7 @@ packages/
   config/     per-server settings: schemas, defaults, cache, live reload
 ```
 
-Both apps talk to the same Postgres database. Settings are saved per server, in modules (`chat`, `channels`, `personality`, `commands`, `music`), and every field has a default in `packages/config/src/defaults.ts`. When the dashboard saves a setting, Postgres sends a `NOTIFY`, and the bot drops its cached copy and picks up the change right away, without a restart. Secrets like YouTube cookies work the same way.
+Both apps talk to the same Postgres database. Settings are saved per server, in modules (`chat`, `channels`, `personality`, `character`, `commands`, `music`), and every field has a default in `packages/config/src/defaults.ts`. When the dashboard saves a setting, Postgres sends a `NOTIFY`, and the bot drops its cached copy and picks up the change right away, without a restart. Secrets like YouTube cookies work the same way.
 
 The bot is made of **features** (`apps/bot/src/features`), each with its own commands and event handlers:
 
@@ -46,9 +46,11 @@ The bot replies when:
 
 None of these channels are set up out of the box, so add them under _Channels_ in the dashboard. When a message is short and the conversation seems over ("ok", "ye"), it can choose to stay quiet unless it was tagged.
 
+It has a **character**: a sheet with its age, home, job, family, friends, weekly routine, tastes, opinions, flaws and a few stories, which goes in every prompt. Anything left blank on the sheet is made up the first time it chats and saved under _Character_ in the dashboard. Edit any of it there, or clear a field to have it made up again.
+
 It remembers things in two ways:
 
-- **Profiles**: short notes on each person, from what they say.
+- **Profiles**: short notes on each person, only from what they say about themselves.
 - **Lore**: facts about its own made-up life (_self_) and the server's running jokes and shared history (_server_). Relevant entries go in the prompt when the chat touches on them.
 
 Both are updated automatically and can be edited in the dashboard, where lore entries can also be locked so the bot never changes or prunes them. `-reset` makes it forget the chat history in that channel, plus its notes on you.
@@ -83,7 +85,7 @@ Where a command takes a `<track>`, use its number from `queue` or part of its ti
 
 Log in, pick a server the bot is in, and you get three pages:
 
-- **Settings**: every setting module as a tab. _Personality_ holds the prompts (persona, rules, format and so on), which can be saved and loaded as presets.
+- **Settings**: every setting module as a tab. _Personality_ holds the prompts (persona, rules, format and so on), which can be saved and loaded as presets. _Character_ is its character sheet.
 - **Lore**: the bot's self and server lore.
 - **Profiles**: its notes on people.
 

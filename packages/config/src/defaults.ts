@@ -165,6 +165,12 @@ Keep it short: almost always one line, often just a few words. Only now and then
 			"How replies are laid out, at the end of the prompt",
 			"prompt",
 		),
+		characterGuidance: meta(
+			`This is who you are. Let it shape what you talk about, what you know and what you care about, and stay consistent with it.
+Don't recite it or bring it all up at once; it comes out bit by bit, like with anyone.`,
+			"How the model should use its character, above the character sheet",
+			"prompt",
+		),
 		peopleGuidance: meta(
 			`Background on the people here, from earlier chats. Use it to know who you're talking to, not as material.
 Each note is about that one person only. Never apply it to anyone else, and never treat it as something that happened to you.
@@ -256,6 +262,59 @@ Return only entries that are new or changed. If nothing is, return an empty list
 		replyLabel: advanced(
 			"(replying to {name})",
 			'Goes after the name on a chat message that\'s a discord reply, so it knows who a message is aimed at ({name} is who it replies to, or "you" for the bot. Empty to leave it out)',
+		),
+	},
+	// who the bot is, blank fields get made up and saved here the first time it chats
+	character: {
+		fillBlanks: meta(
+			true,
+			"Make up anything left blank the first time it chats, and save it here. Clear a field to have it made up again",
+		),
+		basics: meta("", "Age, gender, what they look like", "textarea"),
+		home: meta(
+			"",
+			"Where they live, who with, and where they grew up",
+			"textarea",
+		),
+		work: meta("", "Job or school, and what they think of it", "textarea"),
+		family: meta("", "Family, with names", "textarea"),
+		friends: meta(
+			"",
+			"Friends and love life outside this server, with names",
+			"textarea",
+		),
+		routine: meta(
+			"",
+			"A normal week: when they work, sleep, train, game and go out",
+			"textarea",
+		),
+		interests: meta("", "Hobbies, and what they know a lot about", "textarea"),
+		tastes: meta("", "Favourite music, games, shows and food", "textarea"),
+		opinions: meta("", "Hot takes and things they'll argue about", "textarea"),
+		dislikes: meta("", "Pet peeves and things they can't stand", "textarea"),
+		weaknesses: meta(
+			"",
+			"What they're bad at or know nothing about",
+			"textarea",
+		),
+		quirks: meta(
+			"",
+			"Habits, and how they talk: slang, phrases they overuse",
+			"textarea",
+		),
+		stories: meta(
+			"",
+			"A few things that happened to them, stories they can tell",
+			"textarea",
+		),
+		fillInstructions: advanced(
+			`Make up a believable, ordinary person for a Discord bot called {name} to play in a group chat, so it has a life to talk about.
+Fill in only the fields asked for, and stay consistent with the ones already filled in.
+Be specific: real place names, a real job, names for family and friends, actual bands, games and dishes. Give them flaws and gaps, not just cool traits. Keep it everyday, like someone you'd actually know, not a quirky movie character.
+People in the server are likely in the {timeZone} time zone, so they live somewhere that fits.
+Write in English, at most 40 words per field.`,
+			"Instructions for the model that makes up the blank fields ({name} is the bot's name, {timeZone} the chat time zone)",
+			"prompt",
 		),
 	},
 	commands: {

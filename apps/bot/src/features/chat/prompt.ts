@@ -2,11 +2,14 @@ import { getSettings } from "@klyndre/config";
 import type { LoreEntry } from "@klyndre/db";
 import type { Message } from "discord.js";
 
+import { describeCharacter, loadCharacter } from "#/features/chat/character";
 import type { SelectedLore } from "#/features/chat/lore";
 import { loadNotes, type People } from "#/features/chat/profiles";
 
 interface PromptParts {
 	persona: string;
+	character: string;
+	characterGuidance: string;
 	rules: string;
 	format: string;
 	people: string;
@@ -74,6 +77,7 @@ const buildParts = async (
 	const [
 		{
 			persona,
+			characterGuidance,
 			rules,
 			format,
 			peopleGuidance,
@@ -81,9 +85,11 @@ const buildParts = async (
 			serverLoreGuidance,
 		},
 		{ timeZone, profilesEnabled },
+		character,
 	] = await Promise.all([
 		getSettings(guildId, "personality"),
 		getSettings(guildId, "chat"),
+		loadCharacter(guildId, botName),
 	]);
 	const notes = profilesEnabled
 		? await loadNotes(guildId, people)
@@ -91,6 +97,8 @@ const buildParts = async (
 
 	return {
 		persona: persona || `You are ${botName}, a member of this Discord server.`,
+		character: describeCharacter(character),
+		characterGuidance,
 		rules,
 		format,
 		people: describePeople(people, notes),
@@ -114,6 +122,8 @@ const section = (title: string, guidance: string, body: string) =>
 
 const render = ({
 	persona,
+	character,
+	characterGuidance,
 	rules,
 	format,
 	people,
@@ -126,6 +136,7 @@ const render = ({
 }: PromptParts) =>
 	[
 		persona,
+		section("Who you are", characterGuidance, character),
 		rules,
 		`## Context
 You are ${context.botName} in the server "${context.server}", channel #${context.channel}.
