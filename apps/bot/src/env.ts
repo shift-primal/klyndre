@@ -22,11 +22,15 @@ const runtimeSchema = z.object({
 	// stream, unlike the server's datacenter IP. Unset or unreachable, YouTube
 	// plays the slower way
 	YOUTUBE_PROXY: optional(z.url()),
+	// the one server a local dev bot runs in. Commands are registered there
+	// instead of globally, and the bot won't start if it's in any other server
+	DEV_GUILD_ID: optional(z.string()),
 });
 
 const deploySchema = z.object({
 	DISCORD_TOKEN: z.string().min(1),
 	DISCORD_CLIENT_ID: z.string().min(1),
+	DEV_GUILD_ID: optional(z.string()),
 });
 
 export const env = runtimeSchema.parse(process.env);

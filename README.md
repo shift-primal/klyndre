@@ -40,16 +40,16 @@ Every command works both as a slash command (`/play`) and as a text command with
 
 The bot replies when:
 
-- someone tags it (in any channel, unless *reply to mentions anywhere* is off; then only in AI channels),
+- someone tags it (in any channel, unless _reply to mentions anywhere_ is off; then only in AI channels),
 - someone writes in an **AI channel** (it answers every message there),
 - someone writes in a **random-reply channel** (it answers now and then, 25% of messages by default).
 
-None of these channels are set up out of the box, so add them under *Channels* in the dashboard. When a message is short and the conversation seems over ("ok", "ye"), it can choose to stay quiet unless it was tagged.
+None of these channels are set up out of the box, so add them under _Channels_ in the dashboard. When a message is short and the conversation seems over ("ok", "ye"), it can choose to stay quiet unless it was tagged.
 
 It remembers things in two ways:
 
 - **Profiles**: short notes on each person, from what they say.
-- **Lore**: facts about its own made-up life (*self*) and the server's running jokes and shared history (*server*). Relevant entries go in the prompt when the chat touches on them.
+- **Lore**: facts about its own made-up life (_self_) and the server's running jokes and shared history (_server_). Relevant entries go in the prompt when the chat touches on them.
 
 Both are updated automatically and can be edited in the dashboard, where lore entries can also be locked so the bot never changes or prunes them. `-reset` makes it forget the chat history in that channel, plus its notes on you.
 
@@ -57,25 +57,25 @@ Both are updated automatically and can be edited in the dashboard, where lore en
 
 `-help` lists everything, `-help music` shows one feature, `-help play` shows one command.
 
-| Command | Aliases | What it does |
-| --- | --- | --- |
-| `help [topic]` | `h`, `?` | Help for a feature or command |
-| `ping` | | Check that the bot is online |
-| `reset` | | Forget this channel's chat history and your notes |
-| `play <song>` | `p` | Add a song, link or playlist to the queue |
-| `playnext <song>` | `pn` | Add a song right after the current one |
-| `playnow <song>` | `pnow` | Skip to this song now, keeping the queue |
-| `skip` | `n`, `next` | Skip the current track |
-| `skipto <track>` | `st`, `goto` | Skip to a track in the queue |
-| `pause` / `resume` | `res` | Pause or resume |
-| `stop` | `s`, `dc` | Stop, clear the queue and leave |
-| `restore` | `undo`, `unstop` | Bring back the queue after a stop (within 30 min by default) |
-| `queue` | `q` | Show the queue |
-| `nowplaying` | `np`, `playing` | Show the current track |
-| `remove <track>` | `rm` | Remove a track from the queue |
-| `move <track> <to>` | `mv` | Move a track to another spot |
-| `shuffle` | `shuff` | Shuffle the queue |
-| `loop [off\|track\|queue]` | `repeat` | Set the loop mode, or cycle through them |
+| Command                    | Aliases          | What it does                                                 |
+| -------------------------- | ---------------- | ------------------------------------------------------------ |
+| `help [topic]`             | `h`, `?`         | Help for a feature or command                                |
+| `ping`                     |                  | Check that the bot is online                                 |
+| `reset`                    |                  | Forget this channel's chat history and your notes            |
+| `play <song>`              | `p`              | Add a song, link or playlist to the queue                    |
+| `playnext <song>`          | `pn`             | Add a song right after the current one                       |
+| `playnow <song>`           | `pnow`           | Skip to this song now, keeping the queue                     |
+| `skip`                     | `n`, `next`      | Skip the current track                                       |
+| `skipto <track>`           | `st`, `goto`     | Skip to a track in the queue                                 |
+| `pause` / `resume`         | `res`            | Pause or resume                                              |
+| `stop`                     | `s`, `dc`        | Stop, clear the queue and leave                              |
+| `restore`                  | `undo`, `unstop` | Bring back the queue after a stop (within 30 min by default) |
+| `queue`                    | `q`              | Show the queue                                               |
+| `nowplaying`               | `np`, `playing`  | Show the current track                                       |
+| `remove <track>`           | `rm`             | Remove a track from the queue                                |
+| `move <track> <to>`        | `mv`             | Move a track to another spot                                 |
+| `shuffle`                  | `shuff`          | Shuffle the queue                                            |
+| `loop [off\|track\|queue]` | `repeat`         | Set the loop mode, or cycle through them                     |
 
 Where a command takes a `<track>`, use its number from `queue` or part of its title. Music commands need you to be in the bot's voice channel, and if music channels are set in the dashboard, they only work there.
 
@@ -83,7 +83,7 @@ Where a command takes a `<track>`, use its number from `queue` or part of its ti
 
 Log in, pick a server the bot is in, and you get three pages:
 
-- **Settings**: every setting module as a tab. *Personality* holds the prompts (persona, rules, format and so on), which can be saved and loaded as presets.
+- **Settings**: every setting module as a tab. _Personality_ holds the prompts (persona, rules, format and so on), which can be saved and loaded as presets.
 - **Lore**: the bot's self and server lore.
 - **Profiles**: its notes on people.
 
@@ -106,10 +106,13 @@ pnpm --filter @klyndre/web create:user you@example.com 'a-long-password' "Your n
 
 ### 1. Create the Discord application
 
-1. Create an application at the [Discord developer portal](https://discord.com/developers/applications) and add a bot to it.
-2. Under *Bot*, turn on the **Message Content** intent (the chat feature and text commands need it).
-3. Copy the bot token and the application (client) ID.
-4. Invite the bot with the link in `discord_bot_install_link.txt`, replacing `CLIENT_ID` with yours.
+Use a separate application for development, not the production bot's. Two processes logged in with the same token both get every message, so the local bot and the deployed one would both answer and both join voice.
+
+1. Create a server of your own to test in, and copy its ID (turn on _Developer Mode_ under _Settings → Advanced_, then right-click the server → _Copy Server ID_).
+2. Create an application at the [Discord developer portal](https://discord.com/developers/applications) (for example "klyndre dev") and add a bot to it.
+3. Under _Bot_, turn on the **Message Content** intent (the chat feature and text commands need it).
+4. Copy the bot token and the application (client) ID.
+5. Invite the bot to the test server with the link in `discord_bot_install_link.txt`, replacing `CLIENT_ID` with yours. If you forget, `pnpm bot:register` and the bot both print the link.
 
 ### 2. Configure the environment
 
@@ -117,17 +120,18 @@ pnpm --filter @klyndre/web create:user you@example.com 'a-long-password' "Your n
 cp .env.example .env
 ```
 
-| Variable | Needed for | |
-| --- | --- | --- |
-| `DATABASE_URL` | everything | The default points at the dev database from `docker-compose.dev.yml` |
-| `DISCORD_TOKEN` | bot, web | Bot token. The dashboard uses it to list servers, channels and roles |
-| `DISCORD_CLIENT_ID` | registering commands | Application ID |
-| `XAI_API_KEY` | bot | From [console.x.ai](https://console.x.ai) |
-| `DP_SPOTIFY_CLIENT_ID`, `DP_SPOTIFY_CLIENT_SECRET` | Spotify links (optional) | From the [Spotify developer dashboard](https://developer.spotify.com/dashboard) |
-| `DEBUG_PLAYER` | (optional) | `true` logs discord-player's debug output |
-| `YOUTUBE_PROXY` | fast YouTube on a server (optional) | A proxy on a home connection, see [Streaming through a home connection](#streaming-through-a-home-connection) |
-| `BETTER_AUTH_URL` | web | The URL you open the dashboard on |
-| `BETTER_AUTH_SECRET` | web | Any long random string (`openssl rand -base64 32`) |
+| Variable                                           | Needed for                          |                                                                                                               |
+| -------------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                     | everything                          | The default points at the dev database from `docker-compose.dev.yml`                                          |
+| `DISCORD_TOKEN`                                    | bot, web                            | Bot token. The dashboard uses it to list servers, channels and roles                                          |
+| `DISCORD_CLIENT_ID`                                | registering commands                | Application ID                                                                                                |
+| `DEV_GUILD_ID`                                     | development                         | Your test server's ID. Commands register there right away, and the bot won't start in other servers           |
+| `XAI_API_KEY`                                      | bot                                 | From [console.x.ai](https://console.x.ai)                                                                     |
+| `DP_SPOTIFY_CLIENT_ID`, `DP_SPOTIFY_CLIENT_SECRET` | Spotify links (optional)            | From the [Spotify developer dashboard](https://developer.spotify.com/dashboard)                               |
+| `DEBUG_PLAYER`                                     | (optional)                          | `true` logs discord-player's debug output                                                                     |
+| `YOUTUBE_PROXY`                                    | fast YouTube on a server (optional) | A proxy on a home connection, see [Streaming through a home connection](#streaming-through-a-home-connection) |
+| `BETTER_AUTH_URL`                                  | web                                 | The URL you open the dashboard on                                                                             |
+| `BETTER_AUTH_SECRET`                               | web                                 | Any long random string (`openssl rand -base64 32`)                                                            |
 
 The web app also reads `apps/web/.env.local`, which is a good place for the two `BETTER_AUTH_*` values in development.
 
@@ -239,7 +243,7 @@ The home machine has to stay on and awake, so turn off suspend on it if it has t
 YOUTUBE_PROXY=http://<home machine's Tailscale IP>:8888
 ```
 
-**4. Check it.** Run `pnpm youtube:diag` in the `bot` container. `home ip` should be the home connection's address, and the first block, *through the home proxy*, should say `VISIONOS ok`. Once songs play, the log says `[music] home streamed`.
+**4. Check it.** Run `pnpm youtube:diag` in the `bot` container. `home ip` should be the home connection's address, and the first block, _through the home proxy_, should say `VISIONOS ok`. Once songs play, the log says `[music] home streamed`.
 
 ## Working on it
 
@@ -259,6 +263,6 @@ pnpm db:generate
 
 **Adding a setting.** Add its structure to `packages/config/src/schemas.ts` and its default and description to `defaults.ts`. The dashboard builds its form from those, so it shows up there automatically.
 
-**Adding a command.** Write a `Command` (see `apps/bot/src/core/commands/types.ts`) in the feature's `commands/` folder, add it to that folder's `index.ts`, and run `pnpm bot:register`. Set `devOnly: true` to limit it to admins and the dev role from the *Commands* settings.
+**Adding a command.** Write a `Command` (see `apps/bot/src/core/commands/types.ts`) in the feature's `commands/` folder, add it to that folder's `index.ts`, and run `pnpm bot:register`. Set `devOnly: true` to limit it to admins and the dev role from the _Commands_ settings.
 
 **Prompt testing.** `test:prompt` generates a batch of replies for a message or a scenario file, using a server's real settings, lore and profiles, so you can see how a prompt change affects them without touching Discord. Run it without arguments for the options.

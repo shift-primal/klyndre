@@ -1,5 +1,5 @@
 import { listenForSettingsChanges } from "@klyndre/config/listen";
-import { Events } from "discord.js";
+import { type Client, Events } from "discord.js";
 
 import { createClient } from "#/core/client";
 import { registerDispatch } from "#/core/commands/dispatch";
@@ -13,9 +13,35 @@ const stopListening = await listenForSettingsChanges();
 registerDispatch(client, createRegistry(features));
 for (const feature of features) await feature.register?.(client);
 
-client.once(Events.ClientReady, (c) =>
-	console.log(`Logged in as ${c.user.tag}`),
-);
+const shutDown = async (code: number) => {
+	await client.destroy();
+	await stopListening();
+	process.exit(code);
+};
+
+// a dev bot in any other server is most likely running with the production
+// token, and would answer there next to the real one
+const checkDevGuilds = async (c: Client<true>) => {
+	if (!env.DEV_GUILD_ID) return;
+	const others = c.guilds.cache.filter((g) => g.id !== env.DEV_GUILD_ID);
+	if (others.size === 0) return;
+
+	console.error(
+		`DEV_GUILD_ID is set, but ${c.user.tag} is also in ${others.map((g) => g.name).join(", ")}. Use a separate bot for development, or kick this one from those servers.`,
+	);
+	await shutDown(1);
+};
+
+client.once(Events.ClientReady, async (c) => {
+	console.log(`Logged in as ${c.user.tag}${env.DEV_GUILD_ID ? " (dev)" : ""}`);
+	await checkDevGuilds(c);
+	if (env.DEV_GUILD_ID && !c.guilds.cache.has(env.DEV_GUILD_ID)) {
+		console.warn(
+			`Not in the dev server yet, invite it with https://discord.com/oauth2/authorize?client_id=${c.user.id}&permissions=281749891434560&integration_type=0&scope=bot+applications.commands&guild_id=${env.DEV_GUILD_ID}`,
+		);
+	}
+});
+client.on(Events.GuildCreate, (guild) => checkDevGuilds(guild.client));
 
 process.on("unhandledRejection", (error) => {
 	console.error("[unhandled rejection]", error);
@@ -24,9 +50,7 @@ process.on("unhandledRejection", (error) => {
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
 	process.once(signal, async () => {
 		console.log(`Received ${signal}, shutting down`);
-		await client.destroy();
-		await stopListening();
-		process.exit(0);
+		await shutDown(0);
 	});
 }
 
