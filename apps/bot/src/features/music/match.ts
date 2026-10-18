@@ -4,8 +4,9 @@ import type { Track } from "discord-player";
 // search with something, even a song that only exists on YouTube, so a result
 // has to contain most of the words typed before it's trusted
 
-// share of the typed words a result needs to count as a match
-const MATCH = 0.75;
+// share of the typed words a result needs to count as a match: all of them
+// up to four words, so a missing artist name doesn't pass
+const MATCH = 0.8;
 
 // words people add to a search that the song itself doesn't have
 const FILLER = new Set([
