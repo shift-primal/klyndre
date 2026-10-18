@@ -48,6 +48,7 @@ export const chatSettings = z.object({
 	starterFromHour: field(z.int().min(0).max(23), d.chat.starterFromHour),
 	starterToHour: field(z.int().min(1).max(24), d.chat.starterToHour),
 	starterChance: field(chance, d.chat.starterChance),
+	quirksShown: field(z.int().min(0).max(20), d.chat.quirksShown),
 	timeZone: field(timeZone, d.chat.timeZone),
 	profilesEnabled: field(z.boolean(), d.chat.profilesEnabled),
 	profileUpdateEvery: field(z.int().min(1), d.chat.profileUpdateEvery),

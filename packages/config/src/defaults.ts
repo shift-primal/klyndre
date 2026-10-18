@@ -74,6 +74,10 @@ export const defaults = {
 			0.1,
 			"Chance it starts one at each check (every 10 minutes) once everything else allows it, so it doesn't happen like clockwork",
 		),
+		quirksShown: advanced(
+			1,
+			"Quirks from the character sheet in each reply's prompt, picked at random, so they come up now and then instead of in every message (0 shows them all)",
+		),
 		timeZone: advanced(
 			"Europe/Oslo",
 			"Time zone for the date and time in the prompt (IANA name, like Europe/Oslo)",
@@ -376,7 +380,7 @@ Avoid ones that repeat {name}'s recent replies (the same opener, phrases, jokes 
 Fill in only the fields asked for, and stay consistent with the ones already filled in.
 Be specific: real place names, a real job, names for family and friends, actual bands, games and dishes. Give them flaws and gaps, not just cool traits. Keep it everyday, like someone you'd actually know, not a quirky movie character.
 People in the server are likely in the {timeZone} time zone, so they live somewhere that fits.
-Quirks are what they do and say, not how they type; typing style is set elsewhere. Any slang or phrases they use are in {language}.
+Quirks are what they do and say now and then (never "always"), not how they type; typing style is set elsewhere. Any slang or phrases they use are in {language}.
 Write in English. Text fields are at most 40 words, list fields 2 to 4 short items.`,
 			"Instructions for the model that makes up the blank fields ({name} is the bot's name, {timeZone} the chat time zone, {language} the chat language)",
 			"prompt",

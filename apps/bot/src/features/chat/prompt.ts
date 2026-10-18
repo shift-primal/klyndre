@@ -2,7 +2,11 @@ import { getSettings } from "@klyndre/config";
 import type { LoreEntry } from "@klyndre/db";
 import type { Message } from "discord.js";
 
-import { describeCharacter, loadCharacter } from "#/features/chat/character";
+import {
+	describeCharacter,
+	loadCharacter,
+	withSomeQuirks,
+} from "#/features/chat/character";
 import type { SelectedLore } from "#/features/chat/lore";
 import { loadNotes, type People } from "#/features/chat/profiles";
 
@@ -85,7 +89,7 @@ const buildParts = async (
 			selfLoreGuidance,
 			serverLoreGuidance,
 		},
-		{ timeZone, language, profilesEnabled },
+		{ timeZone, language, profilesEnabled, quirksShown },
 		character,
 	] = await Promise.all([
 		getSettings(guildId, "personality"),
@@ -98,7 +102,7 @@ const buildParts = async (
 
 	return {
 		persona: persona || `You are ${botName}, a member of this Discord server.`,
-		character: describeCharacter(character),
+		character: describeCharacter(withSomeQuirks(character, quirksShown)),
 		characterGuidance,
 		rules,
 		format,

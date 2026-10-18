@@ -50,6 +50,21 @@ export const describeCharacter = (character: Character) =>
 		})
 		.join("\n");
 
+// a few of its quirks, picked at random for each reply. With all of them in every
+// prompt it uses every catchphrase in every message
+export const withSomeQuirks = (
+	character: Character,
+	shown: number,
+): Character => {
+	if (shown === 0 || character.quirks.length <= shown) return character;
+	const quirks = [...character.quirks];
+	for (let i = 0; i < shown; i++) {
+		const j = i + Math.floor(Math.random() * (quirks.length - i));
+		[quirks[i], quirks[j]] = [quirks[j] as string, quirks[i] as string];
+	}
+	return { ...character, quirks: quirks.slice(0, shown) };
+};
+
 const sketchSchema = z.object({
 	sketches: z
 		.array(z.string())
