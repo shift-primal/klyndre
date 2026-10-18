@@ -1,6 +1,5 @@
 import { getSettings } from "@klyndre/config";
-import { generateText, type ModelMessage, Output } from "ai";
-import { z } from "zod";
+import { generateText, type ModelMessage } from "ai";
 
 import { chatModel } from "#/features/chat/model";
 import { firstWord } from "#/features/chat/openers";
@@ -76,11 +75,6 @@ export function repetitionOf({ text, hitCap }: Candidate, context: Context) {
 	return score;
 }
 
-const judgeSchema = z.object({
-	reason: z.string().describe("A few words on why"),
-	best: z.int().describe("The number of the reply to send"),
-});
-
 async function judge(
 	guildId: string,
 	botName: string,
@@ -98,7 +92,8 @@ async function judge(
 		({ text }, i) => `${i + 1}. ${text.replaceAll("\n", " / ")}`,
 	);
 
-	const { output } = await generateText({
+	// a bare number is quicker than structured output, and all it needs to say
+	const { text } = await generateText({
 		model: chatModel(model),
 		instructions: judgeInstructions.replaceAll("{name}", botName),
 		messages: [
@@ -108,15 +103,16 @@ async function judge(
 					`## Chat\n${chat}`,
 					own.length > 0 && `## ${botName}'s recent replies\n${own.join("\n")}`,
 					`## Candidates\n${options.join("\n")}`,
+					"Answer with only the number of the reply to send.",
 				]
 					.filter(Boolean)
 					.join("\n\n"),
 			},
 		],
-		output: Output.object({ schema: judgeSchema }),
 		temperature: 0,
+		maxOutputTokens: 8,
 	});
-	const index = output.best - 1;
+	const index = Number(text.match(/\d+/)?.[0] ?? 0) - 1;
 	return index >= 0 && index < candidates.length ? index : null;
 }
 
