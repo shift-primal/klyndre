@@ -25,6 +25,7 @@ import {
 } from "#/features/voice/prompt";
 import { RealtimeVoice } from "#/features/voice/realtime";
 import { type VoiceConnection, VoiceReceiver } from "#/features/voice/receiver";
+import { VoiceStats } from "#/features/voice/stats";
 
 // louder than this (out of 32768) counts as someone talking, for clients that
 // keep sending audio through background noise
@@ -51,6 +52,11 @@ export const sessions = new Map<string, VoiceSession>();
 
 export class VoiceSession {
 	private readonly realtime = new RealtimeVoice();
+	private readonly stats = new VoiceStats();
+	private readonly reporter = setInterval(
+		() => this.stats.report(this.channel.name),
+		5_000,
+	);
 	private readonly receiver: VoiceReceiver;
 	private readonly output: VoiceOutput;
 	private readonly decoders = new Map<string, OpusEncoder>();
@@ -85,8 +91,10 @@ export class VoiceSession {
 	) {
 		this.settings = settings;
 		const guildId = channel.guild.id;
-		this.receiver = new VoiceReceiver(connection, (userId) =>
-			humansIn(this.channel).has(userId),
+		this.receiver = new VoiceReceiver(
+			connection,
+			(userId) => humansIn(this.channel).has(userId),
+			this.stats,
 		);
 		this.receiver.on("opus", (userId, packet) => this.onOpus(userId, packet));
 		this.output = new VoiceOutput(
@@ -133,6 +141,7 @@ export class VoiceSession {
 		sessions.set(guildId, session);
 		const queue = useMainPlayer().nodes.get(guildId);
 		if (queue) keepConnectionThroughMusic(queue);
+		session.output.primeWithSilence();
 		await session.refreshInstructions();
 		session.checkAlone();
 		console.log(`[voice] joined ${channel.name} in ${channel.guild.name}`);
@@ -150,9 +159,11 @@ export class VoiceSession {
 		let pcm: Buffer;
 		try {
 			pcm = decoder.decode(packet);
-		} catch {
+		} catch (error) {
+			this.stats.error("opus decode error", error);
 			return;
 		}
+		this.stats.count("decoded");
 		const queue = this.backlog.get(userId) ?? [];
 		queue.push(pcm);
 		if (queue.length > MAX_BACKLOG_FRAMES) queue.shift();
@@ -189,7 +200,9 @@ export class VoiceSession {
 			const frame = queue.shift();
 			if (!frame) continue;
 			addStereoAsMono(frame, mix);
-			if (rms(frame) > VOICE_RMS) {
+			const level = rms(frame);
+			this.stats.level(level);
+			if (level > VOICE_RMS) {
 				voiced = true;
 				this.speakers.add(userId);
 			}
@@ -213,6 +226,7 @@ export class VoiceSession {
 	}
 
 	private startTurn() {
+		this.stats.count("turns");
 		this.inTurn = true;
 		this.voicedMs = 0;
 		this.speakers.clear();
@@ -225,6 +239,7 @@ export class VoiceSession {
 		this.inTurn = false;
 		this.flush();
 		if (this.voicedMs < this.settings.minSpeechMs) {
+			this.stats.count("too short");
 			this.realtime.clearInput();
 			this.startIdleTimer();
 			return;
@@ -242,6 +257,7 @@ export class VoiceSession {
 			at: Date.now(),
 		});
 
+		this.stats.count(needsName ? "committed, waiting for name" : "committed");
 		this.realtime.commit();
 		if (!needsName) this.reply();
 		else this.startIdleTimer();
@@ -258,6 +274,7 @@ export class VoiceSession {
 	// --- talking ---
 
 	private reply() {
+		this.stats.count("replies asked");
 		if (this.realtime.isResponding || this.output.speaking) this.bargeIn();
 		this.output.setReplying(true);
 		this.realtime.respond();
@@ -270,9 +287,10 @@ export class VoiceSession {
 	}
 
 	private wireRealtime() {
-		this.realtime.on("audio", (pcm, itemId) =>
-			this.output.enqueue(pcm, itemId),
-		);
+		this.realtime.on("audio", (pcm, itemId) => {
+			this.stats.count("reply audio chunks");
+			this.output.enqueue(pcm, itemId);
+		});
 		this.realtime.on("responseDone", () => {
 			this.output.setReplying(false);
 			this.lastSaidAt = Date.now();
@@ -414,6 +432,8 @@ export class VoiceSession {
 		sessions.delete(this.channel.guild.id);
 		outputs.delete(this.channel.guild.id);
 		clearInterval(this.clock);
+		clearInterval(this.reporter);
+		this.stats.report(this.channel.name);
 		this.stopIdleTimer();
 		if (this.aloneTimer) clearTimeout(this.aloneTimer);
 		this.receiver.destroy();
