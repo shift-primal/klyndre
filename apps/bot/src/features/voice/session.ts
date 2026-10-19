@@ -303,8 +303,14 @@ export class VoiceSession {
 			!reacting &&
 			Date.now() - this.lastSaidAt < this.settings.followUpWindowMs &&
 			speakerIds.some((id) => this.talkingTo.has(id));
+		// while it's still working on or saying a reply, a new reply would cancel
+		// it. In a busy call that happens every turn and nothing gets said, so
+		// then only saying its name or talking over it starts a new one
+		const busy =
+			(this.realtime.isResponding || this.output.speaking) &&
+			!this.bargedThisTurn;
 		const needsName =
-			this.settings.answerOnlyWhenNamed && humans > 1 && !followingUp;
+			busy || (this.settings.answerOnlyWhenNamed && humans > 1 && !followingUp);
 		this.turns.push({
 			itemId: null,
 			speakers: this.speakerNames(speakerIds),

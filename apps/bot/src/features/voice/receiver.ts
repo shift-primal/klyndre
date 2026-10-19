@@ -185,7 +185,11 @@ export class VoiceReceiver extends EventEmitter<{
 		const options = this.candidates().filter((id) => !claimed.has(id));
 		if (options.length === 0) return undefined;
 
-		const dave = this.dave() ?? this.networking?.state.dave;
+		// before the connection is ready, dave may simply not be set up yet, and
+		// "no dave" would wrongly allow a guess
+		const code = this.networking?.state.code;
+		if (code !== READY && code !== RESUMING) return undefined;
+		const dave = this.dave();
 		let found: string | undefined;
 		if (!dave) {
 			// no end-to-end encryption: only certain when one person is left
@@ -194,7 +198,6 @@ export class VoiceReceiver extends EventEmitter<{
 			// with dave, never guess: a wrong guess drops that person for good.
 			// Wait until it's ready, then let each person's key prove it
 			const ready =
-				this.dave() &&
 				Reflect.get(dave, "protocolVersion") !== 0 &&
 				Boolean(Reflect.get(Reflect.get(dave, "session") ?? {}, "ready"));
 			if (!ready) return undefined;
