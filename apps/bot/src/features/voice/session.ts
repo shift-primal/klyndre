@@ -296,7 +296,11 @@ export class VoiceSession {
 		const speakerIds = this.mainSpeakers();
 		// answering it back without saying its name only works for whoever it
 		// was just talking to
+		// a laugh or "haha" while it's still talking is a reaction, not a
+		// reply to answer. Only actually talking over it (see talkedOver) is
+		const reacting = this.output.speaking && !this.bargedThisTurn;
 		const followingUp =
+			!reacting &&
 			Date.now() - this.lastSaidAt < this.settings.followUpWindowMs &&
 			speakerIds.some((id) => this.talkingTo.has(id));
 		const needsName =

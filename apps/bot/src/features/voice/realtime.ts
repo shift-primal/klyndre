@@ -213,7 +213,10 @@ export class RealtimeVoice extends EventEmitter<{
 				break;
 			case "error": {
 				const message = event.error?.message ?? "unknown error";
-				if (HARMLESS.test(message)) break;
+				if (HARMLESS.test(message)) {
+					console.log(`[voice] xAI note: ${message}`);
+					break;
+				}
 				console.error("[voice] xAI error", event.error);
 				this.emit("failed", message);
 				break;

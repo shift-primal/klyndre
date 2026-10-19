@@ -19,6 +19,15 @@ const RTP_OPUS_PAYLOAD_TYPE = 0x78;
 const UNPADDED_NONCE_LENGTH = 4;
 const AUTH_TAG_LENGTH = 16;
 const HEADER_EXTENSION = Buffer.from([0xbe, 0xde]);
+// sent unencrypted at the end of speech, so it can't tell whose stream it is
+const SILENCE_FRAME = Buffer.from([0xf8, 0xff, 0xfe]);
+// a stream that stops decrypting this many packets in a row was matched to
+// the wrong person, and gets worked out again
+const MAX_DROPS = 25;
+// trying to match a stream fails dave decryption for everyone it isn't, and
+// enough failures in a row make discord-voip restart dave for the whole call.
+// So an unknown stream is only tried now and then, with real packets between
+const IDENTIFY_EVERY_MS = 500;
 
 type Packet = { op: number; d: { user_id?: string; ssrc?: number } };
 type ConnectionData = {
@@ -46,6 +55,8 @@ export class VoiceReceiver extends EventEmitter<{
 	opus: [userId: string, packet: Buffer];
 }> {
 	private readonly ssrcs = new Map<number, string>();
+	private readonly drops = new Map<number, number>();
+	private readonly lastTried = new Map<number, number>();
 	private readonly nonce = Buffer.alloc(12);
 	private networking: Networking | undefined;
 	private ws: EventEmitter | undefined;
@@ -130,8 +141,9 @@ export class VoiceReceiver extends EventEmitter<{
 		}
 		if ((message[0] ?? 0) >> 6 !== 2) return this.stats.count("not rtp");
 
+		let packet: Buffer | null = null;
 		try {
-			const packet = this.parse(message, userId);
+			packet = this.parse(message, userId);
 			if (packet) {
 				this.stats.count("decrypted");
 				this.emit("opus", userId, packet);
@@ -143,6 +155,18 @@ export class VoiceReceiver extends EventEmitter<{
 			// 20ms frame is inaudible, losing all of them is what the stats show
 			this.stats.error("decrypt error", error);
 		}
+
+		if (packet) {
+			this.drops.delete(ssrc);
+			return;
+		}
+		const drops = (this.drops.get(ssrc) ?? 0) + 1;
+		this.drops.set(ssrc, drops);
+		if (drops >= MAX_DROPS) {
+			this.ssrcs.delete(ssrc);
+			this.drops.delete(ssrc);
+			this.stats.count("speakers re-identified");
+		}
 	}
 
 	// discord says whose stream is whose (op 5) only once, around when they join
@@ -151,25 +175,39 @@ export class VoiceReceiver extends EventEmitter<{
 	// someone in the call: by dave, whose keys only open their own sender's
 	// audio, or by elimination when one person is left unaccounted for
 	private identify(ssrc: number, message: Buffer) {
+		const now = Date.now();
+		if (now - (this.lastTried.get(ssrc) ?? 0) < IDENTIFY_EVERY_MS) {
+			return undefined;
+		}
+		this.lastTried.set(ssrc, now);
+
 		const claimed = new Set(this.ssrcs.values());
 		const options = this.candidates().filter((id) => !claimed.has(id));
 		if (options.length === 0) return undefined;
 
-		const state = this.networking?.state;
-		const dave =
-			state?.code === READY || state?.code === RESUMING
-				? state.dave
-				: undefined;
-		const daveReady =
-			dave &&
-			Reflect.get(dave, "protocolVersion") !== 0 &&
-			Boolean(Reflect.get(Reflect.get(dave, "session") ?? {}, "ready"));
-
+		const dave = this.dave() ?? this.networking?.state.dave;
 		let found: string | undefined;
-		if (daveReady) {
+		if (!dave) {
+			// no end-to-end encryption: only certain when one person is left
+			if (options.length === 1) found = options[0];
+		} else {
+			// with dave, never guess: a wrong guess drops that person for good.
+			// Wait until it's ready, then let each person's key prove it
+			const ready =
+				this.dave() &&
+				Reflect.get(dave, "protocolVersion") !== 0 &&
+				Boolean(Reflect.get(Reflect.get(dave, "session") ?? {}, "ready"));
+			if (!ready) return undefined;
+			let inner: Buffer | null = null;
+			try {
+				inner = this.transport(message);
+			} catch {
+				return undefined;
+			}
+			if (!inner || inner.equals(SILENCE_FRAME)) return undefined;
 			for (const id of options) {
 				try {
-					if (this.parse(message, id)) {
+					if (dave.decrypt(inner, id)) {
 						found = id;
 						break;
 					}
@@ -177,16 +215,31 @@ export class VoiceReceiver extends EventEmitter<{
 					// not theirs
 				}
 			}
-		} else if (options.length === 1) {
-			found = options[0];
 		}
 		if (!found) return undefined;
 		this.ssrcs.set(ssrc, found);
-		this.stats.count(daveReady ? "speakers found by dave" : "speakers guessed");
+		this.lastTried.delete(ssrc);
+		this.stats.count(dave ? "speakers found by dave" : "speakers guessed");
 		return found;
 	}
 
 	private parse(message: Buffer, userId: string) {
+		const packet = this.transport(message);
+		if (!packet) return null;
+		const dave = this.dave();
+		// null means a frame dave says to drop, never the still-encrypted bytes
+		return dave ? dave.decrypt(packet, userId) : packet;
+	}
+
+	private dave() {
+		const state = this.networking?.state;
+		return state?.code === READY || state?.code === RESUMING
+			? state.dave
+			: undefined;
+	}
+
+	// the opus packet still under dave's end-to-end encryption
+	private transport(message: Buffer) {
 		const state = this.networking?.state;
 		const { encryptionMode, secretKey } = state?.connectionData ?? {};
 		if (!encryptionMode || !secretKey) {
@@ -212,12 +265,7 @@ export class VoiceReceiver extends EventEmitter<{
 		if (message.subarray(12, 14).equals(HEADER_EXTENSION)) {
 			packet = packet.subarray(4 * message.readUInt16BE(14));
 		}
-		const dave =
-			state?.code === READY || state?.code === RESUMING
-				? state.dave
-				: undefined;
-		// null means a frame dave says to drop, never the still-encrypted bytes
-		return dave ? dave.decrypt(packet, userId) : packet;
+		return packet;
 	}
 
 	private decrypt(message: Buffer, secretKey: Uint8Array) {
