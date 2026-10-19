@@ -20,6 +20,7 @@ import {
 	getVideoId,
 	isTrackLikeNode,
 	runWithSearchContext,
+	search,
 	YoutubeExtractor,
 	type YoutubeOptions,
 } from "discord-player-youtubei";
@@ -32,6 +33,7 @@ import youtubeDl from "youtube-dl-exec";
 import { Innertube } from "youtubei.js";
 
 import { env } from "#/env";
+import { bridgeScore, rankResults } from "#/features/music/match";
 
 const COOKIE_DOMAIN = /(^|\.)(youtube|google)\.com$/;
 const COOKIE_COPY = join(tmpdir(), "yt-cookies.txt");
@@ -431,7 +433,13 @@ async function loadVideo(videoId: string, ext: YoutubeExtractor) {
 export class CustomYoutubeExtractor extends YoutubeExtractor {
 	override async handle(query: string, context: ExtractorSearchContext) {
 		const link = parseLink(query);
-		if (!link) return super.handle(query, context);
+		if (!link) {
+			const result = await super.handle(query, context);
+			return this.createResponse(
+				result.playlist,
+				result.playlist ? result.tracks : rankResults(query, result.tracks),
+			);
+		}
 		const { videoId, listId } = link;
 
 		return runWithSearchContext(context, async () => {
@@ -455,5 +463,26 @@ export class CustomYoutubeExtractor extends YoutubeExtractor {
 			if (!videoId) return this.createResponse(null, []);
 			return this.createResponse(null, [await loadVideo(videoId, this)]);
 		});
+	}
+
+	// a Spotify song plays from YouTube. The first search hit is often the
+	// music video, so the video closest in title, artist and length wins
+	override async bridge(track: Track) {
+		const videos = await runWithSearchContext(
+			{ requestedBy: track.requestedBy, type: QueryType.YOUTUBE_SEARCH },
+			() => search(`${track.author} - ${track.title}`, this),
+		);
+		const candidates = videos.filter((video) => !video.live).slice(0, 10);
+		const best = candidates
+			.map((video) => ({ video, score: bridgeScore(track, video) }))
+			.reduce<{ video: Track; score: number } | null>(
+				(top, next) => (!top || next.score > top.score ? next : top),
+				null,
+			)?.video;
+		if (!best) return null;
+		console.log(
+			`[music] "${track.author} - ${track.title}" plays from "${best.title}" by ${best.author} (${best.duration})`,
+		);
+		return this.stream(best);
 	}
 }
