@@ -68,8 +68,12 @@ export class RealtimeVoice extends EventEmitter<{
 	private pending: object[] = [];
 	private responding = false;
 	private respondingSince = 0;
-	// replies asked for with response.create and not yet started
-	private requested = 0;
+	// the bot wants a reply: the first reply from xAI that carries audio is it.
+	// xAI also starts replies by itself after commits, some with no audio at
+	// all, so which one came first says nothing
+	private wanted = false;
+	// a reply was wanted while another was still running; ask once it's done
+	private askWhenFree = false;
 	private readonly replies = new Map<string, Reply>();
 	private current: string | null = null;
 	private lastCommitAt = 0;
@@ -88,9 +92,10 @@ export class RealtimeVoice extends EventEmitter<{
 	}
 
 	get isResponding() {
-		return (
-			this.responding && Date.now() - this.respondingSince < STALE_RESPONSE_MS
-		);
+		const fresh = Date.now() - this.respondingSince < STALE_RESPONSE_MS;
+		// a wanted reply that never came stops being waited for too
+		if (!fresh) this.wanted = false;
+		return this.responding && fresh;
 	}
 
 	connect(config: RealtimeConfig) {
@@ -162,26 +167,28 @@ export class RealtimeVoice extends EventEmitter<{
 	respond() {
 		this.responding = true;
 		this.respondingSince = Date.now();
-		// a reply xAI already started for this turn is used instead of asking
-		// for another, which would collide with it
-		const waiting = [...this.replies.values()]
+		this.wanted = true;
+		// xAI may already be saying something for this turn
+		const spoken = [...this.replies.values()]
 			.reverse()
 			.find(
 				(reply) =>
-					!reply.ours &&
-					reply.at >= this.lastCommitAt &&
-					Date.now() - reply.at < ADOPT_WINDOW_MS,
+					!reply.ours && reply.held.length > 0 && reply.at >= this.lastCommitAt,
 			);
-		if (waiting) {
-			this.adopt(waiting);
+		if (spoken) {
+			this.adopt(spoken);
 			return;
 		}
-		this.requested++;
-		this.send({ type: "response.create" });
+		// asking while another reply runs would be refused, so wait for it
+		const running = [...this.replies.values()].some((reply) => !reply.done);
+		if (running) this.askWhenFree = true;
+		else this.send({ type: "response.create" });
 	}
 
 	private adopt(reply: Reply) {
 		reply.ours = true;
+		this.wanted = false;
+		this.askWhenFree = false;
 		this.current = reply.id;
 		this.emit("responseStarted");
 		for (const { pcm, itemId } of reply.held.splice(0)) {
@@ -199,6 +206,21 @@ export class RealtimeVoice extends EventEmitter<{
 		this.emit("responseDone");
 	}
 
+	private dropIfUnwanted(reply: Reply) {
+		if (reply.ours || reply.held.length === 0) return;
+		if (!reply.done) this.sendNow({ type: "response.cancel" });
+		const items = new Set(
+			[...reply.held.map((h) => h.itemId), reply.transcriptItem].filter(
+				(id): id is string => Boolean(id),
+			),
+		);
+		for (const id of items) {
+			this.sendNow({ type: "conversation.item.delete", item_id: id });
+		}
+		reply.held.length = 0;
+		console.log("[voice] dropped a reply xAI started on its own");
+	}
+
 	// which reply an event belongs to; xAI may leave the id off
 	private replyFor(event: ServerEvent) {
 		const id = event.response_id ?? event.response?.id;
@@ -212,8 +234,8 @@ export class RealtimeVoice extends EventEmitter<{
 	interrupt(itemId: string | null, heardMs: number) {
 		if (this.responding) this.send({ type: "response.cancel" });
 		this.responding = false;
-		// asked for but not started yet: cancelled as soon as it starts
-		this.requested = 0;
+		this.wanted = false;
+		this.askWhenFree = false;
 		if (itemId) {
 			this.cancelled.add(itemId);
 			this.send({
@@ -231,7 +253,8 @@ export class RealtimeVoice extends EventEmitter<{
 		this.ready = false;
 		this.pending = [];
 		this.responding = false;
-		this.requested = 0;
+		this.wanted = false;
+		this.askWhenFree = false;
 		this.replies.clear();
 		this.current = null;
 		this.cancelled.clear();
@@ -270,28 +293,9 @@ export class RealtimeVoice extends EventEmitter<{
 				};
 				this.replies.set(id, reply);
 				setTimeout(() => this.replies.delete(id), 30_000);
-				if (this.requested > 0) {
-					this.requested--;
-					this.adopt(reply);
-					break;
-				}
-				// started by xAI itself: held until the bot decides it wants it
-				setTimeout(() => {
-					if (reply.ours) return;
-					if (!reply.done) this.sendNow({ type: "response.cancel" });
-					// nobody heard it, so it shouldn't stay in the conversation as
-					// something the bot said
-					const items = new Set(
-						[...reply.held.map((h) => h.itemId), reply.transcriptItem].filter(
-							(id): id is string => Boolean(id),
-						),
-					);
-					for (const id of items) {
-						this.sendNow({ type: "conversation.item.delete", item_id: id });
-					}
-					reply.held.length = 0;
-					console.log("[voice] dropped a reply xAI started on its own");
-				}, ADOPT_WINDOW_MS);
+				// one that never turns out to be wanted is cancelled, and taken out
+				// of the conversation so the model doesn't think it said it
+				setTimeout(() => this.dropIfUnwanted(reply), ADOPT_WINDOW_MS);
 				break;
 			}
 			case "response.output_audio.delta":
@@ -302,6 +306,7 @@ export class RealtimeVoice extends EventEmitter<{
 				const reply = this.replyFor(event);
 				if (reply && !reply.ours) {
 					reply.held.push({ pcm, itemId });
+					if (this.wanted) this.adopt(reply);
 					break;
 				}
 				this.respondingSince = Date.now();
@@ -325,11 +330,15 @@ export class RealtimeVoice extends EventEmitter<{
 			case "response.done": {
 				const reply = this.replyFor(event);
 				if (reply) reply.done = true;
-				if (reply && !reply.ours) break;
-				if (reply) this.finish(reply);
-				else {
-					this.responding = false;
-					this.emit("responseDone");
+				if (reply?.ours) {
+					this.finish(reply);
+					break;
+				}
+				// a reply was wanted but this one had nothing to say: ask for one
+				const running = [...this.replies.values()].some((r) => !r.done);
+				if (this.wanted && this.askWhenFree && !running) {
+					this.askWhenFree = false;
+					this.sendNow({ type: "response.create" });
 				}
 				break;
 			}
@@ -341,6 +350,12 @@ export class RealtimeVoice extends EventEmitter<{
 				break;
 			case "error": {
 				const message = event.error?.message ?? "unknown error";
+				// asked while xAI's own reply was still running: ask again after it
+				if (this.wanted && /active response/i.test(message)) {
+					this.askWhenFree = true;
+					console.log(`[voice] xAI note: ${message} (asking again when free)`);
+					break;
+				}
 				if (HARMLESS.test(message)) {
 					console.log(`[voice] xAI note: ${message}`);
 					break;
