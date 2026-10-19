@@ -52,7 +52,6 @@ export const sessions = new Map<string, VoiceSession>();
 
 export class VoiceSession {
 	private readonly realtime = new RealtimeVoice();
-	private readonly stats = new VoiceStats();
 	private readonly reporter = setInterval(
 		() => this.stats.report(this.channel.name),
 		5_000,
@@ -88,14 +87,12 @@ export class VoiceSession {
 		private readonly textChannel: TextBasedChannel | null,
 		private readonly connection: VoiceConnection,
 		settings: Settings<"voice">,
+		receiver: VoiceReceiver,
+		private readonly stats: VoiceStats,
 	) {
 		this.settings = settings;
 		const guildId = channel.guild.id;
-		this.receiver = new VoiceReceiver(
-			connection,
-			(userId) => humansIn(this.channel).has(userId),
-			this.stats,
-		);
+		this.receiver = receiver;
 		this.receiver.on("opus", (userId, packet) => this.onOpus(userId, packet));
 		this.output = new VoiceOutput(
 			guildId,
@@ -129,14 +126,32 @@ export class VoiceSession {
 			// music joins deafened, and a deafened bot hears nothing
 			connection.rejoin({ ...connection.joinConfig, selfDeaf: false });
 		}
-		await ready(connection);
+		// listening starts before the connection is ready, since discord says
+		// whose audio is whose right as it connects
+		const stats = new VoiceStats();
+		const humans = () => humansIn(channel);
+		const receiver = new VoiceReceiver(
+			connection,
+			(userId) => humans().has(userId),
+			() => [...humans().keys()],
+			stats,
+		);
+		let settings: Settings<"voice">;
+		try {
+			await ready(connection);
+			settings = await getSettings(guildId, "voice");
+		} catch (error) {
+			receiver.destroy();
+			throw error;
+		}
 
-		const settings = await getSettings(guildId, "voice");
 		const session = new VoiceSession(
 			channel,
 			textChannel,
 			connection,
 			settings,
+			receiver,
+			stats,
 		);
 		sessions.set(guildId, session);
 		const queue = useMainPlayer().nodes.get(guildId);

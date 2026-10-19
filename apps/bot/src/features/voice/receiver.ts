@@ -58,6 +58,8 @@ export class VoiceReceiver extends EventEmitter<{
 	constructor(
 		private readonly connection: VoiceConnection,
 		private readonly wants: (userId: string) => boolean,
+		// everyone in the call, to work out who an unannounced stream belongs to
+		private readonly candidates: () => string[],
 		private readonly stats: VoiceStats,
 	) {
 		super();
@@ -119,7 +121,8 @@ export class VoiceReceiver extends EventEmitter<{
 	private onUdpMessage(message: Buffer) {
 		if (message.length <= 8) return;
 		this.stats.count("udp in");
-		const userId = this.ssrcs.get(message.readUInt32BE(8));
+		const ssrc = message.readUInt32BE(8);
+		const userId = this.ssrcs.get(ssrc) ?? this.identify(ssrc, message);
 		if (!userId) return this.stats.count("unknown ssrc");
 		if (!this.wants(userId)) return this.stats.count("not in call");
 		if (((message[1] ?? 0) & 0x7f) !== RTP_OPUS_PAYLOAD_TYPE) {
@@ -140,6 +143,47 @@ export class VoiceReceiver extends EventEmitter<{
 			// 20ms frame is inaudible, losing all of them is what the stats show
 			this.stats.error("decrypt error", error);
 		}
+	}
+
+	// discord says whose stream is whose (op 5) only once, around when they join
+	// or start talking. A call joined after that, or the music's connection
+	// from earlier, never hears it. So a stream nobody announced is matched to
+	// someone in the call: by dave, whose keys only open their own sender's
+	// audio, or by elimination when one person is left unaccounted for
+	private identify(ssrc: number, message: Buffer) {
+		const claimed = new Set(this.ssrcs.values());
+		const options = this.candidates().filter((id) => !claimed.has(id));
+		if (options.length === 0) return undefined;
+
+		const state = this.networking?.state;
+		const dave =
+			state?.code === READY || state?.code === RESUMING
+				? state.dave
+				: undefined;
+		const daveReady =
+			dave &&
+			Reflect.get(dave, "protocolVersion") !== 0 &&
+			Boolean(Reflect.get(Reflect.get(dave, "session") ?? {}, "ready"));
+
+		let found: string | undefined;
+		if (daveReady) {
+			for (const id of options) {
+				try {
+					if (this.parse(message, id)) {
+						found = id;
+						break;
+					}
+				} catch {
+					// not theirs
+				}
+			}
+		} else if (options.length === 1) {
+			found = options[0];
+		}
+		if (!found) return undefined;
+		this.ssrcs.set(ssrc, found);
+		this.stats.count(daveReady ? "speakers found by dave" : "speakers guessed");
+		return found;
 	}
 
 	private parse(message: Buffer, userId: string) {
