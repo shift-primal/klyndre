@@ -44,24 +44,20 @@ const cleanReply = (botName: string, text: string) => {
 const EMOJI =
 	/<a?:\w+:\d+>|\p{Extended_Pictographic}|\p{Emoji_Modifier}|\u200d|\ufe0f|\u20e3/gu;
 
-// one line per message, so the reply comes back joined with newlines
-async function styleReply(guildId: string, text: string) {
-	const { maxMessages, lowercaseReplies, stripEmojis } = await getSettings(
-		guildId,
-		"chat",
-	);
+// one line per message, so the reply comes back joined with newlines.
+// with one message allowed, its lines are joined into it instead of dropped
+async function styleReply(guildId: string, text: string, maxMessages: number) {
+	const { lowercaseReplies, stripEmojis } = await getSettings(guildId, "chat");
 	const style = (line: string) => {
 		let styled = line;
 		if (stripEmojis) styled = styled.replace(EMOJI, "");
 		if (lowercaseReplies) styled = styled.toLowerCase();
 		return styled.replace(/[ \t]{2,}/g, " ").trim();
 	};
-	return text
-		.split("\n")
-		.map(style)
-		.filter(Boolean)
-		.slice(0, maxMessages)
-		.join("\n");
+	const lines = text.split("\n").map(style).filter(Boolean);
+	return maxMessages === 1
+		? lines.join(" ")
+		: lines.slice(0, maxMessages).join("\n");
 }
 
 const hasImages = (history: ModelMessage[]) =>
@@ -157,6 +153,7 @@ export async function composeReply(
 			skipMarker,
 			skipNote,
 			repeatedOpenerNote,
+			oneLineNote,
 		},
 		chat,
 	] = await Promise.all([
@@ -164,7 +161,11 @@ export async function composeReply(
 		getSettings(guildId, "chat"),
 	]);
 	const habit = openerHabit(turn.recent, chat.openerRepeatLimit);
+	// rolled per reply, the model writes several lines far more often than asked to
+	const maxMessages =
+		Math.random() < chat.multiMessageChance ? chat.maxMessages : 1;
 	const note = [
+		maxMessages === 1 && chat.maxMessages > 1 && oneLineNote,
 		habit && repeatedOpenerNote.replaceAll("{word}", habit),
 		turn.canSkip && skipMarker && skipNote.replaceAll("{marker}", skipMarker),
 	]
@@ -236,7 +237,7 @@ export async function composeReply(
 		const styled = (
 			await Promise.all(
 				drafts.map(async (draft) => ({
-					text: await styleReply(guildId, draft.text),
+					text: await styleReply(guildId, draft.text, maxMessages),
 					finishReason: draft.finishReason,
 				})),
 			)

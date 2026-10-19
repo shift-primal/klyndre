@@ -40,6 +40,10 @@ export const defaults = {
 			3,
 			"Most messages one reply is sent as. Each line it writes is its own message, and lines past this are dropped (1 keeps only the first line)",
 		),
+		multiMessageChance: meta(
+			0.15,
+			"Chance a reply may be sent as several messages. Otherwise it's told to write one line, and any extra lines are joined into one message",
+		),
 		followUpTypingMs: advanced(
 			20,
 			"Typing time per character before each message after the first, so they don't all land at once (0 to send them right away)",
@@ -283,6 +287,11 @@ Avoid ones that repeat {name}'s recent replies (the same opener, phrases, jokes 
 		repeatedOpenerNote: advanced(
 			`your last replies keep starting with "{word}", don't start this one with it.`,
 			"Note added after the last message when its recent replies keep starting with the same word ({word} is that word)",
+			"textarea",
+		),
+		oneLineNote: advanced(
+			"write just one line this time.",
+			"Note added after the last message when the reply has to be a single message (see multiMessageChance)",
 			"textarea",
 		),
 		skipNote: advanced(
