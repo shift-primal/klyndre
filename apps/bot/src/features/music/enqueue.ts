@@ -80,15 +80,20 @@ async function playAtEnd(ctx: CommandContext, voiceChannel: VoiceBasedChannel) {
 	// as the first track (currentTrack is only set once its audio is ready)
 	const isPlayingNow = position === 0;
 
-	const trackLine = isPlayingNow
-		? `🔥 Time to play some bangers 🔥`
-		: `➕ **${playlist ? "Starts at" : "Added to queue"} #${position}:** ${formatTrack(track)}`;
+	// a song that starts right away gets the now playing message, so there's
+	// nothing to add about it
+	const lines = [
+		playlist &&
+			`📃 **Added playlist** ${formatPlaylist(playlist)} · ${playlist.tracks.length} tracks`,
+		!isPlayingNow &&
+			`➕ **${playlist ? "Starts at" : "Added to queue"} #${position}:** ${formatTrack(track)}`,
+	].filter(Boolean);
 
-	await ctx.reply(
-		playlist
-			? `📃 **Added playlist** ${formatPlaylist(playlist)} · ${playlist.tracks.length} tracks\n${trackLine}`
-			: trackLine,
-	);
+	if (lines.length === 0) {
+		await ctx.dismiss();
+		return;
+	}
+	await ctx.reply(lines.join("\n"));
 }
 
 async function playAhead(

@@ -59,6 +59,11 @@ export function registerDispatch(client: Client, registry: CommandRegistry) {
 					});
 				}
 			},
+			dismiss: async () => {
+				if (interaction.deferred && !interaction.replied) {
+					await interaction.deleteReply();
+				}
+			},
 		});
 	});
 
@@ -83,6 +88,7 @@ export function registerDispatch(client: Client, registry: CommandRegistry) {
 			reply: async (content, options) => {
 				await message.reply({ content, components: options?.components });
 			},
+			dismiss: async () => {},
 		});
 	});
 }

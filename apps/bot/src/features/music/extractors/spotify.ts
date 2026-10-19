@@ -6,6 +6,7 @@ import {
 } from "discord-player";
 
 import { env } from "#/env";
+import { isCloseMatch, rankResults } from "#/features/music/match";
 
 const SPOTIFY_LINK = /^(https?:\/\/open\.spotify\.com\/|spotify:)/;
 const SPOTIFY_TOKEN_URL = "https://accounts.spotify.com/api/token";
@@ -36,10 +37,27 @@ export class CustomSpotifyExtractor extends SpotifyExtractor {
 			return await super.handle(query, context);
 		}
 
-		return await super.handle(query, {
+		const result = await super.handle(query, {
 			...context,
 			type: QueryType.SPOTIFY_SEARCH,
 		});
+		// Spotify always finds something, so a song that's only on YouTube
+		// would play some other song with similar words. Failing here makes
+		// discord-player ask the other extractors, YouTube first
+		if (!result.tracks.some((track) => isCloseMatch(query, track))) {
+			console.log(
+				`[music] no close Spotify match for "${query}", trying YouTube`,
+			);
+			throw new Error(`No close Spotify match for "${query}"`);
+		}
+		const ranked = rankResults(query, result.tracks);
+		const [top] = ranked;
+		if (top) {
+			console.log(
+				`[music] Spotify matched "${query}" to "${top.author} - ${top.title}"`,
+			);
+		}
+		return this.createResponse(null, ranked);
 	}
 
 	override async activate() {
