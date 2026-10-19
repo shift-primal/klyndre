@@ -58,10 +58,17 @@ export const sessions = new Map<string, VoiceSession>();
 
 export class VoiceSession {
 	private readonly realtime = new RealtimeVoice();
-	private readonly reporter = setInterval(
-		() => this.stats.report(this.channel.name),
-		5_000,
-	);
+	// also picks up settings changed on the dashboard mid-call (cached reads,
+	// cleared when a setting is saved)
+	private readonly reporter = setInterval(() => {
+		this.stats.report(this.channel.name);
+		getSettings(this.channel.guild.id, "voice").then(
+			(settings) => {
+				this.settings = settings;
+			},
+			() => {},
+		);
+	}, 5_000);
 	private readonly receiver: VoiceReceiver;
 	private readonly output: VoiceOutput;
 	private readonly decoders = new Map<string, OpusEncoder>();

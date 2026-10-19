@@ -33,6 +33,21 @@ type ServerEvent = {
 // that never completes can't leave it "busy" for the rest of the call
 const STALE_RESPONSE_MS = 15_000;
 
+// xAI starts a reply by itself after some commits. That reply waits this long
+// to be adopted (the turn turns out to be for the bot) before it's cancelled
+const ADOPT_WINDOW_MS = 3_000;
+
+type Reply = {
+	id: string;
+	ours: boolean;
+	done: boolean;
+	at: number;
+	// audio and transcript of a reply nobody has adopted yet
+	held: { pcm: Buffer; itemId: string }[];
+	transcript?: string;
+	transcriptItem?: string;
+};
+
 // errors that mean nothing was wrong, like cancelling a reply that just ended
 const HARMLESS = /no active response|not found|already/i;
 
@@ -53,10 +68,11 @@ export class RealtimeVoice extends EventEmitter<{
 	private pending: object[] = [];
 	private responding = false;
 	private respondingSince = 0;
-	// replies asked for and not yet started; anything else xAI starts on its
-	// own after a commit is cancelled
+	// replies asked for with response.create and not yet started
 	private requested = 0;
-	private readonly unrequested = new Set<string>();
+	private readonly replies = new Map<string, Reply>();
+	private current: string | null = null;
+	private lastCommitAt = 0;
 	// replies cancelled by someone talking over them, whose leftover audio is dropped
 	private readonly cancelled = new Set<string>();
 	// each kind of event xAI sends is logged once, to see what it actually speaks
@@ -135,6 +151,7 @@ export class RealtimeVoice extends EventEmitter<{
 	}
 
 	commit() {
+		this.lastCommitAt = Date.now();
 		this.send({ type: "input_audio_buffer.commit" });
 	}
 
@@ -145,8 +162,49 @@ export class RealtimeVoice extends EventEmitter<{
 	respond() {
 		this.responding = true;
 		this.respondingSince = Date.now();
+		// a reply xAI already started for this turn is used instead of asking
+		// for another, which would collide with it
+		const waiting = [...this.replies.values()]
+			.reverse()
+			.find(
+				(reply) =>
+					!reply.ours &&
+					reply.at >= this.lastCommitAt &&
+					Date.now() - reply.at < ADOPT_WINDOW_MS,
+			);
+		if (waiting) {
+			this.adopt(waiting);
+			return;
+		}
 		this.requested++;
 		this.send({ type: "response.create" });
+	}
+
+	private adopt(reply: Reply) {
+		reply.ours = true;
+		this.current = reply.id;
+		this.emit("responseStarted");
+		for (const { pcm, itemId } of reply.held.splice(0)) {
+			if (!this.cancelled.has(itemId)) this.emit("audio", pcm, itemId);
+		}
+		if (reply.transcript && !this.cancelled.has(reply.transcriptItem ?? "")) {
+			this.emit("said", reply.transcript);
+		}
+		if (reply.done) this.finish(reply);
+	}
+
+	private finish(reply: Reply) {
+		if (this.current === reply.id) this.current = null;
+		this.responding = false;
+		this.emit("responseDone");
+	}
+
+	// which reply an event belongs to; xAI may leave the id off
+	private replyFor(event: ServerEvent) {
+		const id = event.response_id ?? event.response?.id;
+		if (id) return this.replies.get(id);
+		if (this.current) return this.replies.get(this.current);
+		return [...this.replies.values()].at(-1);
 	}
 
 	// someone talked over it: stop generating, and cut the item down to what
@@ -174,7 +232,8 @@ export class RealtimeVoice extends EventEmitter<{
 		this.pending = [];
 		this.responding = false;
 		this.requested = 0;
-		this.unrequested.clear();
+		this.replies.clear();
+		this.current = null;
 		this.cancelled.clear();
 	}
 
@@ -201,41 +260,77 @@ export class RealtimeVoice extends EventEmitter<{
 		}
 		switch (event.type) {
 			case "response.created": {
-				const id = event.response?.id ?? "";
-				if (this.requested === 0) {
-					// xAI answered a commit nobody asked it to answer
-					if (id) this.unrequested.add(id);
-					this.sendNow({ type: "response.cancel" });
-					console.log("[voice] cancelled a reply xAI started on its own");
+				const id = event.response?.id ?? `reply-${Date.now()}`;
+				const reply: Reply = {
+					id,
+					ours: false,
+					done: false,
+					at: Date.now(),
+					held: [],
+				};
+				this.replies.set(id, reply);
+				setTimeout(() => this.replies.delete(id), 30_000);
+				if (this.requested > 0) {
+					this.requested--;
+					this.adopt(reply);
 					break;
 				}
-				this.requested--;
-				this.responding = true;
-				this.respondingSince = Date.now();
-				this.emit("responseStarted");
+				// started by xAI itself: held until the bot decides it wants it
+				setTimeout(() => {
+					if (reply.ours) return;
+					if (!reply.done) this.sendNow({ type: "response.cancel" });
+					// nobody heard it, so it shouldn't stay in the conversation as
+					// something the bot said
+					const items = new Set(
+						[...reply.held.map((h) => h.itemId), reply.transcriptItem].filter(
+							(id): id is string => Boolean(id),
+						),
+					);
+					for (const id of items) {
+						this.sendNow({ type: "conversation.item.delete", item_id: id });
+					}
+					reply.held.length = 0;
+					console.log("[voice] dropped a reply xAI started on its own");
+				}, ADOPT_WINDOW_MS);
 				break;
 			}
 			case "response.output_audio.delta":
 			case "response.audio.delta": {
 				const itemId = event.item_id ?? "";
 				if (!event.delta || this.cancelled.has(itemId)) break;
-				if (this.unrequested.has(event.response_id ?? "")) break;
+				const pcm = Buffer.from(event.delta, "base64");
+				const reply = this.replyFor(event);
+				if (reply && !reply.ours) {
+					reply.held.push({ pcm, itemId });
+					break;
+				}
 				this.respondingSince = Date.now();
-				this.emit("audio", Buffer.from(event.delta, "base64"), itemId);
+				this.emit("audio", pcm, itemId);
 				break;
 			}
 			case "response.output_audio_transcript.done":
-			case "response.audio_transcript.done":
+			case "response.audio_transcript.done": {
+				const reply = this.replyFor(event);
+				if (reply && !reply.ours) {
+					reply.transcript = event.transcript;
+					reply.transcriptItem = event.item_id;
+					break;
+				}
 				// a reply cut off partway wasn't heard in full, so it isn't remembered
 				if (event.transcript && !this.cancelled.has(event.item_id ?? "")) {
 					this.emit("said", event.transcript);
 				}
 				break;
+			}
 			case "response.done": {
-				const id = event.response?.id ?? "";
-				if (this.unrequested.delete(id)) break;
-				this.responding = false;
-				this.emit("responseDone");
+				const reply = this.replyFor(event);
+				if (reply) reply.done = true;
+				if (reply && !reply.ours) break;
+				if (reply) this.finish(reply);
+				else {
+					this.responding = false;
+					this.emit("responseDone");
+				}
 				break;
 			}
 			case "input_audio_buffer.committed":
