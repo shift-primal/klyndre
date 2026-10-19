@@ -470,7 +470,7 @@ export class CustomYoutubeExtractor extends YoutubeExtractor {
 	override async bridge(track: Track) {
 		const videos = await runWithSearchContext(
 			{ requestedBy: track.requestedBy, type: QueryType.YOUTUBE_SEARCH },
-			() => search(`${track.author} - ${track.title}`, this),
+			() => search(`${track.author} - ${track.title} audio`, this),
 		);
 		const candidates = videos.filter((video) => !video.live).slice(0, 10);
 		const best = candidates

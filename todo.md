@@ -1,2 +1,2 @@
 - [ ] Make chat better
-- [ ] Better search for music
+- [x] Better search for music

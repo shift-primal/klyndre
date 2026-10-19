@@ -181,13 +181,16 @@ export function bridgeScore(song: Track, video: Track) {
 
 	let score = coverage(bareTitle(song.title), video.title);
 	score += 0.5 * coverage(artist, `${video.author} ${video.title}`);
-	if (video.author.endsWith(" - Topic")) score += 0.3;
+	// the artist's own upload over a lyrics channel's, YouTube Music's
+	// "Artist - Topic" audio over both
+	if (coverage(artist, video.author) >= MATCH) score += 0.2;
+	if (video.author.endsWith(" - Topic")) score += 0.2;
 
 	if (song.durationMS && video.durationMS) {
 		const off = Math.abs(seconds(song.durationMS) - seconds(video.durationMS));
 		const tooFar = Math.max(20, seconds(song.durationMS) * 0.15);
-		if (off <= 3) score += 0.6;
-		else if (off <= 10) score += 0.3;
+		if (off <= 5) score += 0.6;
+		else if (off <= 12) score += 0.3;
 		else if (off > tooFar) score -= 0.6;
 	}
 

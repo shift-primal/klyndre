@@ -30,7 +30,7 @@ The bot is made of **features** (`apps/bot/src/features`), each with its own com
 
 - **general**: `help` and `ping`.
 - **chat**: decides when to reply, builds a prompt from the recent chat history, the server's lore and its notes on the people talking, and sends one reply at a time per channel. After replying it may update its notes on people and its lore in the background.
-- **music**: a [discord-player](https://discord-player.js.org) queue per server. YouTube is the main source (through `discord-player-youtubei`, see [How YouTube is played](#how-youtube-is-played)). Spotify links are resolved through the Spotify API and played from YouTube. The next song in the queue starts loading 20 seconds before the current one ends, so songs follow each other without a gap.
+- **music**: a [discord-player](https://discord-player.js.org) queue per server. YouTube is the main source (through `discord-player-youtubei`, see [How YouTube is played](#how-youtube-is-played)). Spotify links are resolved through the Spotify API and played from YouTube. A search goes to Spotify first, and only counts when a result has most of the words typed; otherwise it searches YouTube instead (`match.ts`). A Spotify song plays from the YouTube video closest to it in title, artist and length, so the official audio wins over a longer music video. The next song in the queue starts loading 20 seconds before the current one ends, so songs follow each other without a gap.
 
 Every command works both as a slash command (`/play`) and as a text command with the server's prefix (`-play`, by default).
 
