@@ -58,11 +58,14 @@ const normalize = (text: string) =>
 		.replace(/\p{Diacritic}/gu, "")
 		.replace(/[^\p{L}\p{N}\s]/gu, " ");
 
-// one typo allowed, since names come back from speech recognition spelled
-// however they sounded ("klyndre" might be heard as "klindre")
+// a typo or two allowed, since names come back from speech recognition
+// spelled however they sounded ("klyndre" might be heard as "klindre")
 function closeEnough(word: string, name: string) {
 	if (word === name) return true;
-	if (name.length < 5 || Math.abs(word.length - name.length) > 1) return false;
+	if (name.length < 5) return false;
+	// longer names get two ("klyndre" heard as "klindrer")
+	const allowed = name.length >= 7 ? 2 : 1;
+	if (Math.abs(word.length - name.length) > allowed) return false;
 	let previous = Array.from({ length: name.length + 1 }, (_, i) => i);
 	for (let i = 1; i <= word.length; i++) {
 		const current = [i];
@@ -76,7 +79,7 @@ function closeEnough(word: string, name: string) {
 		}
 		previous = current;
 	}
-	return (previous[name.length] ?? Infinity) <= 1;
+	return (previous[name.length] ?? Infinity) <= allowed;
 }
 
 export function mentionsName(transcript: string, names: string[]) {
