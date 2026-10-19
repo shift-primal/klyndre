@@ -50,6 +50,8 @@ export class RealtimeVoice extends EventEmitter<{
 	private responding = false;
 	// replies cancelled by someone talking over them, whose leftover audio is dropped
 	private readonly cancelled = new Set<string>();
+	// each kind of event xAI sends is logged once, to see what it actually speaks
+	private readonly seenTypes = new Set<string>();
 
 	// the url only changes in tests
 	constructor(private readonly url = URL) {
@@ -76,6 +78,9 @@ export class RealtimeVoice extends EventEmitter<{
 		socket.on("open", () => {
 			if (socket !== this.socket) return;
 			this.ready = true;
+			console.log(
+				`[voice] connected to xAI (${config.model}, ${config.voice})`,
+			);
 			this.sendNow(sessionUpdate(config));
 			for (const event of this.pending.splice(0)) this.sendNow(event);
 		});
@@ -169,6 +174,14 @@ export class RealtimeVoice extends EventEmitter<{
 	}
 
 	private onEvent(event: ServerEvent) {
+		if (!this.seenTypes.has(event.type)) {
+			this.seenTypes.add(event.type);
+			const detail =
+				event.type === "session.updated" || event.type === "session.created"
+					? ` ${JSON.stringify(event).slice(0, 600)}`
+					: "";
+			console.log(`[voice] xAI sent ${event.type}${detail}`);
+		}
 		switch (event.type) {
 			case "response.created":
 				this.responding = true;

@@ -3,6 +3,8 @@ import { EventEmitter } from "node:events";
 
 import type { joinVoiceChannel } from "discord-player";
 
+import type { VoiceStats } from "#/features/voice/stats";
+
 // discord-voip (what discord-player plays through) can send audio but has no
 // receiver, so this is @discordjs/voice's VoiceReceiver ported onto its
 // connection internals: the UDP socket, the encryption key and DAVE decryption
@@ -56,6 +58,7 @@ export class VoiceReceiver extends EventEmitter<{
 	constructor(
 		private readonly connection: VoiceConnection,
 		private readonly wants: (userId: string) => boolean,
+		private readonly stats: VoiceStats,
 	) {
 		super();
 		this.onWsPacket = this.onWsPacket.bind(this);
@@ -104,6 +107,7 @@ export class VoiceReceiver extends EventEmitter<{
 	private onWsPacket(packet: Packet) {
 		const { user_id: userId, ssrc } = packet.d ?? {};
 		if (packet.op === SPEAKING && userId && ssrc !== undefined) {
+			if (this.ssrcs.get(ssrc) !== userId) this.stats.count("speakers mapped");
 			this.ssrcs.set(ssrc, userId);
 		} else if (packet.op === CLIENT_DISCONNECT && userId) {
 			for (const [key, id] of this.ssrcs) {
@@ -114,24 +118,37 @@ export class VoiceReceiver extends EventEmitter<{
 
 	private onUdpMessage(message: Buffer) {
 		if (message.length <= 8) return;
+		this.stats.count("udp in");
 		const userId = this.ssrcs.get(message.readUInt32BE(8));
-		if (!userId || !this.wants(userId)) return;
-		if (((message[1] ?? 0) & 0x7f) !== RTP_OPUS_PAYLOAD_TYPE) return;
-		if ((message[0] ?? 0) >> 6 !== 2) return;
+		if (!userId) return this.stats.count("unknown ssrc");
+		if (!this.wants(userId)) return this.stats.count("not in call");
+		if (((message[1] ?? 0) & 0x7f) !== RTP_OPUS_PAYLOAD_TYPE) {
+			return this.stats.count("not opus");
+		}
+		if ((message[0] ?? 0) >> 6 !== 2) return this.stats.count("not rtp");
 
 		try {
 			const packet = this.parse(message, userId);
-			if (packet) this.emit("opus", userId, packet);
-		} catch {
+			if (packet) {
+				this.stats.count("decrypted");
+				this.emit("opus", userId, packet);
+			} else {
+				this.stats.count("dropped by dave");
+			}
+		} catch (error) {
 			// a packet from before a key change, or a dave transition. Losing one
-			// 20ms frame is inaudible
+			// 20ms frame is inaudible, losing all of them is what the stats show
+			this.stats.error("decrypt error", error);
 		}
 	}
 
 	private parse(message: Buffer, userId: string) {
 		const state = this.networking?.state;
 		const { encryptionMode, secretKey } = state?.connectionData ?? {};
-		if (!encryptionMode || !secretKey) return null;
+		if (!encryptionMode || !secretKey) {
+			this.stats.count("no key yet");
+			return null;
+		}
 		if (encryptionMode !== "aead_aes256_gcm_rtpsize") {
 			// discord-voip picks aes-gcm whenever node has it, which it always does
 			if (!this.warnedMode) {

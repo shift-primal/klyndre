@@ -92,6 +92,12 @@ export class VoiceOutput {
 		this.route();
 	}
 
+	// a moment of silence on joining: discord can hold back other people's
+	// audio from a client that hasn't sent any of its own yet
+	primeWithSilence() {
+		this.enqueue(Buffer.alloc(24_000 * 0.2 * 2), "");
+	}
+
 	// drops whatever hasn't been heard yet, and says how much of the item was
 	clear(): { itemId: string | null; heardMs: number } {
 		const itemId = this.currentItem ?? this.chunks[0]?.itemId ?? null;
