@@ -29,6 +29,10 @@ type ServerEvent = {
 	error?: { message?: string; code?: string; type?: string };
 };
 
+// a reply that has sent nothing for this long is treated as finished, so one
+// that never completes can't leave it "busy" for the rest of the call
+const STALE_RESPONSE_MS = 15_000;
+
 // errors that mean nothing was wrong, like cancelling a reply that just ended
 const HARMLESS = /no active response|not found|already/i;
 
@@ -48,6 +52,11 @@ export class RealtimeVoice extends EventEmitter<{
 	private ready = false;
 	private pending: object[] = [];
 	private responding = false;
+	private respondingSince = 0;
+	// replies asked for and not yet started; anything else xAI starts on its
+	// own after a commit is cancelled
+	private requested = 0;
+	private readonly unrequested = new Set<string>();
 	// replies cancelled by someone talking over them, whose leftover audio is dropped
 	private readonly cancelled = new Set<string>();
 	// each kind of event xAI sends is logged once, to see what it actually speaks
@@ -63,7 +72,9 @@ export class RealtimeVoice extends EventEmitter<{
 	}
 
 	get isResponding() {
-		return this.responding;
+		return (
+			this.responding && Date.now() - this.respondingSince < STALE_RESPONSE_MS
+		);
 	}
 
 	connect(config: RealtimeConfig) {
@@ -133,6 +144,8 @@ export class RealtimeVoice extends EventEmitter<{
 
 	respond() {
 		this.responding = true;
+		this.respondingSince = Date.now();
+		this.requested++;
 		this.send({ type: "response.create" });
 	}
 
@@ -141,6 +154,8 @@ export class RealtimeVoice extends EventEmitter<{
 	interrupt(itemId: string | null, heardMs: number) {
 		if (this.responding) this.send({ type: "response.cancel" });
 		this.responding = false;
+		// asked for but not started yet: cancelled as soon as it starts
+		this.requested = 0;
 		if (itemId) {
 			this.cancelled.add(itemId);
 			this.send({
@@ -158,6 +173,8 @@ export class RealtimeVoice extends EventEmitter<{
 		this.ready = false;
 		this.pending = [];
 		this.responding = false;
+		this.requested = 0;
+		this.unrequested.clear();
 		this.cancelled.clear();
 	}
 
@@ -183,14 +200,27 @@ export class RealtimeVoice extends EventEmitter<{
 			console.log(`[voice] xAI sent ${event.type}${detail}`);
 		}
 		switch (event.type) {
-			case "response.created":
+			case "response.created": {
+				const id = event.response?.id ?? "";
+				if (this.requested === 0) {
+					// xAI answered a commit nobody asked it to answer
+					if (id) this.unrequested.add(id);
+					this.sendNow({ type: "response.cancel" });
+					console.log("[voice] cancelled a reply xAI started on its own");
+					break;
+				}
+				this.requested--;
 				this.responding = true;
+				this.respondingSince = Date.now();
 				this.emit("responseStarted");
 				break;
+			}
 			case "response.output_audio.delta":
 			case "response.audio.delta": {
 				const itemId = event.item_id ?? "";
 				if (!event.delta || this.cancelled.has(itemId)) break;
+				if (this.unrequested.has(event.response_id ?? "")) break;
+				this.respondingSince = Date.now();
 				this.emit("audio", Buffer.from(event.delta, "base64"), itemId);
 				break;
 			}
@@ -201,10 +231,13 @@ export class RealtimeVoice extends EventEmitter<{
 					this.emit("said", event.transcript);
 				}
 				break;
-			case "response.done":
+			case "response.done": {
+				const id = event.response?.id ?? "";
+				if (this.unrequested.delete(id)) break;
 				this.responding = false;
 				this.emit("responseDone");
 				break;
+			}
 			case "input_audio_buffer.committed":
 				this.emit("committed", event.item_id ?? event.item?.id ?? "");
 				break;

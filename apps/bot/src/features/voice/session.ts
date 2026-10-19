@@ -366,6 +366,8 @@ export class VoiceSession {
 			console.log(`[voice] ${botNameIn(this.channel)}: ${text}`);
 		});
 		this.realtime.on("committed", (itemId) => {
+			// its transcript can come first, and has already claimed its turn
+			if (this.heardItems.has(itemId)) return;
 			const turn = this.turns.find((t) => t.itemId === null);
 			if (turn) turn.itemId = itemId;
 		});
@@ -390,9 +392,11 @@ export class VoiceSession {
 		this.lastTranscript = transcript.trim();
 		const cutoff = Date.now() - TRANSCRIPT_WAIT_MS;
 		this.turns = this.turns.filter((t) => t.at >= cutoff);
-		const index = this.turns.findIndex(
-			(t) => t.itemId === itemId || (itemId === "" && t.itemId !== null),
-		);
+		// xAI often sends the transcript before confirming the commit, so a
+		// transcript with no matching turn belongs to the oldest one still
+		// waiting for its confirmation
+		let index = itemId ? this.turns.findIndex((t) => t.itemId === itemId) : -1;
+		if (index < 0) index = this.turns.findIndex((t) => t.itemId === null);
 		const turn = index >= 0 ? this.turns.splice(index, 1)[0] : undefined;
 		const speakers = turn?.speakers ?? "someone";
 		if (!text) return;
