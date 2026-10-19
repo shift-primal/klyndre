@@ -30,8 +30,13 @@ import { VoiceStats } from "#/features/voice/stats";
 // louder than this (out of 32768) counts as someone talking, for clients that
 // keep sending audio through background noise
 const VOICE_RMS = 400;
-// someone has to talk this long over it before it stops to listen
+// how long someone has to talk over it before it stops to listen. Alone with
+// one person that's anyone; in a group it's only who it's answering, and
+// longer, since people talk over each other all the time
 const BARGE_IN_MS = 240;
+const GROUP_BARGE_IN_MS = 600;
+// a speaker counts as part of a turn with at least this share of its talking
+const MAIN_SPEAKER_SHARE = 0.4;
 // at most this much of one person's audio waits to be mixed, so a stalled
 // clock can't build up a delay
 const MAX_BACKLOG_FRAMES = 6;
@@ -44,6 +49,7 @@ const FAILURE_NOTICE_EVERY_MS = 5 * 60_000;
 type Turn = {
 	itemId: string | null;
 	speakers: string;
+	speakerIds: string[];
 	needsName: boolean;
 	at: number;
 };
@@ -68,7 +74,14 @@ export class VoiceSession {
 	private inTurn = false;
 	private voicedMs = 0;
 	private lastVoiceAt = 0;
-	private readonly speakers = new Set<string>();
+	// ms of speech per person this turn
+	private readonly voicedBy = new Map<string, number>();
+	private bargedThisTurn = false;
+	// who it's answering: only they can cut it off or follow up without its name
+	private talkingTo = new Set<string>();
+	// xAI's transcripts repeat earlier turns, so only what's new is used
+	private lastTranscript = "";
+	private readonly heardItems = new Set<string>();
 	private pending: Buffer[] = [];
 	// committed turns waiting for their transcript
 	private turns: Turn[] = [];
@@ -210,28 +223,46 @@ export class VoiceSession {
 
 	private mixFrame(now: number) {
 		const mix = new Int32Array(FRAME_SAMPLES);
-		let voiced = false;
+		const voicedUsers: string[] = [];
 		for (const [userId, queue] of this.backlog) {
 			const frame = queue.shift();
 			if (!frame) continue;
 			addStereoAsMono(frame, mix);
 			const level = rms(frame);
 			this.stats.level(level);
-			if (level > VOICE_RMS) {
-				voiced = true;
-				this.speakers.add(userId);
-			}
+			if (level > VOICE_RMS) voicedUsers.push(userId);
 		}
 
-		if (voiced) {
+		if (voicedUsers.length > 0) {
 			this.lastVoiceAt = now;
 			if (!this.inTurn) this.startTurn();
 			this.voicedMs += FRAME_MS;
-			if (this.voicedMs === BARGE_IN_MS && this.output.speaking) {
+			for (const userId of voicedUsers) {
+				this.voicedBy.set(userId, (this.voicedBy.get(userId) ?? 0) + FRAME_MS);
+			}
+			if (!this.bargedThisTurn && this.output.speaking && this.talkedOver()) {
+				this.bargedThisTurn = true;
+				this.stats.count("talked over");
 				this.bargeIn();
 			}
 		}
 		if (this.inTurn) this.pending.push(downsampleHalf(mix));
+	}
+
+	private talkedOver() {
+		if (humansIn(this.channel).size <= 1) return this.voicedMs >= BARGE_IN_MS;
+		return [...this.talkingTo].some(
+			(id) => (this.voicedBy.get(id) ?? 0) >= GROUP_BARGE_IN_MS,
+		);
+	}
+
+	// who did most of the talking this turn, not everyone who made a sound
+	private mainSpeakers() {
+		const most = Math.max(0, ...this.voicedBy.values());
+		return [...this.voicedBy]
+			.filter(([, ms]) => ms >= most * MAIN_SPEAKER_SHARE)
+			.sort((a, b) => b[1] - a[1])
+			.map(([id]) => id);
 	}
 
 	private flush() {
@@ -244,7 +275,8 @@ export class VoiceSession {
 		this.stats.count("turns");
 		this.inTurn = true;
 		this.voicedMs = 0;
-		this.speakers.clear();
+		this.voicedBy.clear();
+		this.bargedThisTurn = false;
 		this.pending = [];
 		this.stopIdleTimer();
 		if (!this.realtime.connected) this.connectRealtime();
@@ -261,25 +293,30 @@ export class VoiceSession {
 		}
 
 		const humans = humansIn(this.channel).size;
+		const speakerIds = this.mainSpeakers();
+		// answering it back without saying its name only works for whoever it
+		// was just talking to
 		const followingUp =
-			Date.now() - this.lastSaidAt < this.settings.followUpWindowMs;
+			Date.now() - this.lastSaidAt < this.settings.followUpWindowMs &&
+			speakerIds.some((id) => this.talkingTo.has(id));
 		const needsName =
 			this.settings.answerOnlyWhenNamed && humans > 1 && !followingUp;
 		this.turns.push({
 			itemId: null,
-			speakers: this.speakerNames(),
+			speakers: this.speakerNames(speakerIds),
+			speakerIds,
 			needsName,
 			at: Date.now(),
 		});
 
 		this.stats.count(needsName ? "committed, waiting for name" : "committed");
 		this.realtime.commit();
-		if (!needsName) this.reply();
+		if (!needsName) this.reply(speakerIds);
 		else this.startIdleTimer();
 	}
 
-	private speakerNames() {
-		const names = [...this.speakers].map(
+	private speakerNames(ids: string[]) {
+		const names = ids.map(
 			(id) =>
 				this.channel.guild.members.cache.get(id)?.displayName ?? "someone",
 		);
@@ -288,8 +325,9 @@ export class VoiceSession {
 
 	// --- talking ---
 
-	private reply() {
+	private reply(to: string[]) {
 		this.stats.count("replies asked");
+		this.talkingTo = new Set(to);
 		if (this.realtime.isResponding || this.output.speaking) this.bargeIn();
 		this.output.setReplying(true);
 		this.realtime.respond();
@@ -306,9 +344,10 @@ export class VoiceSession {
 			this.stats.count("reply audio chunks");
 			this.output.enqueue(pcm, itemId);
 		});
+		// lastSaidAt is only set by "said", so a reply cut off before anyone
+		// heard it doesn't open the follow-up window
 		this.realtime.on("responseDone", () => {
 			this.output.setReplying(false);
-			this.lastSaidAt = Date.now();
 			this.startIdleTimer();
 		});
 		this.realtime.on("said", (text) => {
@@ -331,6 +370,14 @@ export class VoiceSession {
 	}
 
 	private onHeard(itemId: string, transcript: string) {
+		// the same item can be transcribed more than once
+		if (itemId) {
+			if (this.heardItems.has(itemId)) return;
+			this.heardItems.add(itemId);
+			if (this.heardItems.size > 200) this.heardItems.clear();
+		}
+		const text = newPart(this.lastTranscript, transcript);
+		this.lastTranscript = transcript.trim();
 		const cutoff = Date.now() - TRANSCRIPT_WAIT_MS;
 		this.turns = this.turns.filter((t) => t.at >= cutoff);
 		const index = this.turns.findIndex(
@@ -338,12 +385,11 @@ export class VoiceSession {
 		);
 		const turn = index >= 0 ? this.turns.splice(index, 1)[0] : undefined;
 		const speakers = turn?.speakers ?? "someone";
-		if (transcript.trim()) {
-			this.remember(`${speakers}: ${transcript.trim()}`);
-			console.log(`[voice] ${speakers}: ${transcript.trim()}`);
-		}
-		if (turn?.needsName && mentionsName(transcript, this.names())) {
-			this.reply();
+		if (!text) return;
+		this.remember(`${speakers}: ${text}`);
+		console.log(`[voice] ${speakers}: ${text}`);
+		if (turn?.needsName && mentionsName(text, this.names())) {
+			this.reply(turn.speakerIds);
 		}
 	}
 
@@ -483,6 +529,28 @@ export function keepConnectionThroughMusic(queue: GuildQueue) {
 		if (sessions.has(queue.guild.id)) dispatcher.audioPlayer.stop(true);
 		else hangUp();
 	};
+}
+
+// xAI's transcript of a turn sometimes starts with the previous turns again
+// ("a." then "a. b." then "a. b. c."), so only the part after what was already
+// heard is new. Matched loosely, since the repeat can be worded a little
+// differently each time
+export function newPart(previous: string, current: string) {
+	const now = current.trim();
+	const before = previous.trim();
+	if (!before) return now;
+	let shared = 0;
+	const limit = Math.min(before.length, now.length);
+	while (shared < limit && before[shared] === now[shared]) shared++;
+	if (shared < before.length * 0.6) return now;
+	// when they part ways inside a word ("begynne"/"begynner"), back up to its
+	// start; at a word's end ("hacket."/"hacket,") the new part starts there
+	const splitsWord = /[\p{L}\p{N}]/u.test(now[shared] ?? "") && shared > 0;
+	const from = splitsWord ? now.lastIndexOf(" ", shared - 1) + 1 : shared;
+	return now
+		.slice(from)
+		.replace(/^[\s.,!?]+/, "")
+		.trim();
 }
 
 function ready(connection: VoiceConnection) {
