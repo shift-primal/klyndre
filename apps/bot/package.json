@@ -32,11 +32,13 @@
 		"mediaplex": "^1.0.0",
 		"simple-ytdl-core": "^1.1.1",
 		"undici": "^7.30.0",
+		"ws": "8.22.0",
 		"youtube-dl-exec": "^3.1.15",
 		"youtubei.js": "^18.1.0",
 		"zod": "^4.6.5"
 	},
 	"devDependencies": {
+		"@types/ws": "8.18.2",
 		"tsx": "^4.23.15"
 	}
 }
