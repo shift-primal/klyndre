@@ -156,9 +156,12 @@ export const ModuleForm = ({
 						dirty: state.isDirty,
 						canSubmit: state.canSubmit,
 						submitting: state.isSubmitting,
+						atDefaults: fields.every((spec) =>
+							sameValue(state.values[spec.key], defaults[spec.key]),
+						),
 					})}
 				>
-					{({ dirty, canSubmit, submitting }) => (
+					{({ dirty, canSubmit, submitting, atDefaults }) => (
 						<div className="flex gap-2">
 							<Button
 								type="submit"
@@ -173,6 +176,20 @@ export const ModuleForm = ({
 								onClick={() => form.reset()}
 							>
 								Discard
+							</Button>
+							{/* like each field's Reset, it only saves with Save changes */}
+							<Button
+								type="button"
+								variant="ghost"
+								className="ml-auto"
+								disabled={atDefaults || submitting}
+								onClick={() => {
+									for (const spec of fields) {
+										form.setFieldValue(spec.key, defaults[spec.key]);
+									}
+								}}
+							>
+								Reset all to defaults
 							</Button>
 						</div>
 					)}

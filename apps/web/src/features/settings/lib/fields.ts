@@ -6,6 +6,7 @@ export type FieldKind =
 	| "text"
 	| "textarea"
 	| "prompt"
+	| "list"
 	| "channels"
 	| "role";
 
@@ -55,6 +56,7 @@ export const labelFor = (key: string) => {
 const kindOf = (widget: string | undefined, inner: Node): FieldKind => {
 	if (widget === "textarea") return "textarea";
 	if (widget === "prompt") return "prompt";
+	if (widget === "list") return "list";
 	if (widget === "textChannel") return "channels";
 	if (widget === "role") return "role";
 	if (inner.def.type === "boolean") return "switch";

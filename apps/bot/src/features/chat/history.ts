@@ -7,6 +7,17 @@ import type { People } from "#/features/chat/profiles";
 // the reset command replies with this, and history stops reading at it
 export const RESET_MARKER = "🧹 Chat history cleared.";
 
+// chat messages that don't reply to anything (the extra lines of a reply, a
+// conversation it starts) end with this zero-width space. Nobody sees it, and it
+// tells them apart from other bot messages like music announcements
+export const CHAT_MARK = "\u200b";
+
+const isUnansweringChat = (msg: Message<true>) =>
+	!msg.reference && msg.content.endsWith(CHAT_MARK);
+
+const textOf = (msg: Message<true>) =>
+	msg.cleanContent.replaceAll(CHAT_MARK, "").trim();
+
 const isReset = (msg: Message<true>, botId: string) =>
 	msg.author.id === botId && msg.content.startsWith(RESET_MARKER);
 
@@ -43,7 +54,7 @@ const toModelMessage = (
 	speaker: string,
 	marker: string,
 ): ModelMessage => {
-	const text = msg.cleanContent.trim();
+	const text = textOf(msg);
 	if (msg.author.id === botId) return { role: "assistant", content: text };
 
 	const line = [`${speaker}: ${text}`, marker].filter(Boolean).join(" ");
@@ -60,16 +71,24 @@ const belongsInChat = (
 ) => {
 	if (msg.author.id !== botId) return !msg.content.startsWith(prefix);
 	if (msg.interactionMetadata) return false;
+	if (isUnansweringChat(msg)) return true;
 
 	const answered = byId.get(msg.reference?.messageId ?? "");
 	return answered !== undefined && !answered.content.startsWith(prefix);
 };
 
-const replyChain = async (message: Message<true>, limit: number) => {
+// messages already fetched are looked up there first, each fetch is a round trip to discord
+const replyChain = async (
+	message: Message<true>,
+	limit: number,
+	known: ReadonlyMap<string, Message<true>>,
+) => {
 	const chain: Message<true>[] = [];
 	let current = message;
 	while (chain.length < limit && current.reference?.messageId) {
-		const parent = await current.fetchReference().catch(() => null);
+		const parent =
+			known.get(current.reference.messageId) ??
+			(await current.fetchReference().catch(() => null));
 		if (!parent) break;
 		chain.push(parent);
 		current = parent;
@@ -97,14 +116,14 @@ export const buildHistory = async (
 	]);
 
 	const { messages: channelMessages } = message.channel;
-	const [before, after, chain] = await Promise.all([
+	const [before, after] = await Promise.all([
 		channelMessages.fetch({ limit: historyLimit, before: message.id }),
 		// anything sent while this reply waited its turn
 		laterLimit > 0
 			? channelMessages.fetch({ limit: laterLimit, after: message.id })
 			: null,
-		replyChain(message, threadLimit),
 	]);
+	const chain = await replyChain(message, threadLimit, before);
 	const botId = message.client.user.id;
 
 	const earlier = [...before.values()];
@@ -139,7 +158,7 @@ export const buildHistory = async (
 				: imagesOf(msg).slice(0, imageBudget);
 		imageBudget -= images.length;
 
-		if (!msg.cleanContent.trim() && images.length === 0) continue;
+		if (!textOf(msg) && images.length === 0) continue;
 		if (!msg.author.bot) people.set(msg.author.id, nameOf(msg));
 		kept.push({ msg, images });
 	}
@@ -152,8 +171,20 @@ export const buildHistory = async (
 			? `${nameOf(msg)} ${replyLabel.replaceAll("{name}", target)}`
 			: nameOf(msg);
 	};
-	const messages = kept
-		.map(({ msg, images }) =>
+	// a reply sent as several messages goes back together, one line each
+	const messages: ModelMessage[] = [];
+	for (const { msg, images } of [...kept].reverse()) {
+		const previous = messages.at(-1);
+		if (
+			msg.author.id === botId &&
+			isUnansweringChat(msg) &&
+			previous?.role === "assistant" &&
+			typeof previous.content === "string"
+		) {
+			previous.content += `\n${textOf(msg)}`;
+			continue;
+		}
+		messages.push(
 			toModelMessage(
 				msg,
 				botId,
@@ -161,8 +192,8 @@ export const buildHistory = async (
 				speakerOf(msg),
 				piledUp && msg === message ? answeringMarker : "",
 			),
-		)
-		.reverse();
+		);
+	}
 
 	// what people said, without name prefixes, so a chatter's own name doesn't count
 	const human = kept.filter(({ msg }) => !msg.author.bot);

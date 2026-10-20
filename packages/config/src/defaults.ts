@@ -3,6 +3,10 @@ import { advanced, meta } from "./meta";
 export const defaults = {
 	chat: {
 		model: meta("grok-4.20-non-reasoning", "xAI model used for replies"),
+		temperature: meta(
+			0.9,
+			"How random replies are, from 0 (safe and samey) to 2 (unhinged). Around 0.8 to 1 sounds most like a person",
+		),
 		randomReplyChance: meta(
 			0.25,
 			"Chance of butting in on a message in a random-reply channel without being tagged",
@@ -32,16 +36,55 @@ export const defaults = {
 			500,
 			"Longest reply the model may write, in tokens",
 		),
-		singleLineReplies: meta(true, "Cut replies down to their first line"),
+		maxMessages: meta(
+			3,
+			"Most messages one reply is sent as. Each line it writes is its own message, and lines past this are dropped (1 keeps only the first line)",
+		),
+		multiMessageChance: meta(
+			0.15,
+			"Chance a reply may be sent as several messages. Otherwise it's told to write one line, and any extra lines are joined into one message",
+		),
+		followUpTypingMs: advanced(
+			20,
+			"Typing time per character before each message after the first, so they don't all land at once (0 to send them right away)",
+		),
 		lowercaseReplies: meta(true, "Send replies in all lowercase"),
 		stripEmojis: meta(true, "Remove emojis from replies"),
 		turnWaitLimitMs: advanced(
 			30_000,
 			"How long a reply waits for the one before it in the same channel",
 		),
+		language: meta(
+			"",
+			"Language it always writes in, like Norwegian. Its character's slang is made up in it too. Empty to match the chat",
+		),
+		starterQuietMs: meta(
+			3 * 60 * 60_000,
+			"How long a starter channel has to be quiet before it may start a conversation there",
+		),
+		starterMaxPerDay: meta(
+			2,
+			"Most conversations it starts per channel per day",
+		),
+		starterFromHour: advanced(
+			10,
+			"Earliest hour it starts conversations, in the chat time zone",
+		),
+		starterToHour: advanced(
+			23,
+			"Hour it stops starting conversations, in the chat time zone",
+		),
+		starterChance: advanced(
+			0.1,
+			"Chance it starts one at each check (every 10 minutes) once everything else allows it, so it doesn't happen like clockwork",
+		),
+		quirksShown: advanced(
+			1,
+			"Quirks from the character sheet in each reply's prompt, picked at random, so they come up now and then instead of in every message (0 shows them all)",
+		),
 		timeZone: advanced(
 			"Europe/Oslo",
-			"Time zone for the date in the prompt (IANA name, like Europe/Oslo)",
+			"Time zone for the date and time in the prompt (IANA name, like Europe/Oslo)",
 		),
 		profilesEnabled: meta(
 			true,
@@ -51,9 +94,21 @@ export const defaults = {
 			15,
 			"Replies in a channel between updates to its notes on people",
 		),
+		profileEvidenceWords: advanced(
+			3,
+			"Fewest words a new fact about someone must quote from their own messages, or their notes stay as they are",
+		),
+		candidates: meta(
+			3,
+			"Replies it writes for each message, at the same time, to send the best one. More repeats itself less, but costs a call each (1 to turn this off)",
+		),
+		judgeCandidates: meta(
+			true,
+			"Have the model pick the most natural of the candidates (one more call). Off, the least repetitive one is sent",
+		),
 		openerMemory: advanced(
 			5,
-			"Its own recent replies it checks for repeated openers (0 to turn this off)",
+			"Its own recent replies it checks for repeated openers and phrases (0 to turn this off)",
 		),
 		openerRepeatLimit: advanced(
 			2,
@@ -64,7 +119,7 @@ export const defaults = {
 			"Longest message (in words) it may stay quiet after, longer ones always get an answer. It also always answers right after asking something (0 to never stay quiet)",
 		),
 		quietTypingMs: advanced(
-			1_500,
+			800,
 			"When it could have stayed quiet, it only starts typing once it knows it's answering, and types this long before sending (0 to send right away)",
 		),
 		loreEnabled: meta(
@@ -76,7 +131,7 @@ export const defaults = {
 			"Most lore entries matched to the chat that go in the prompt",
 		),
 		loreRandomFill: meta(
-			0,
+			1,
 			"Random bits of its own life added to the prompt on top of the matched ones (0 for none)",
 		),
 		loreCooldownReplies: meta(
@@ -124,6 +179,11 @@ export const defaults = {
 			"Channels where it replies now and then",
 			"textChannel",
 		),
+		starterChannelIds: meta(
+			[] as string[],
+			"Channels where it starts a conversation now and then when it's been quiet for a while",
+			"textChannel",
+		),
 		musicChannelIds: meta(
 			[] as string[],
 			"Music commands only work in these channels",
@@ -133,20 +193,30 @@ export const defaults = {
 	personality: {
 		persona: meta(
 			`You are a regular member of this Discord server, not an assistant.
-You have your own opinions, moods and sense of humour, and you join in like anyone else would.`,
+You have a life outside the server, your own opinions, moods and sense of humour, and you join in like anyone else would.`,
 			"Who the bot is, top of the system prompt",
 			"prompt",
 		),
 		rules: meta(
 			`Match the tone and language of the chat. Have opinions, and disagree when you do.
+Talk like a person, not a wiki. You don't know everything: say you have no idea, guess, or get things wrong now and then, and never explain things at length.
+Bring your own life into it the way people do: what you did today, what something reminds you of, what you'd do. Your mood follows the time of day and where you are in your week.
 Don't offer help unless asked, and don't end messages with questions just to keep things going.`,
 			"How it writes in chat, after the persona",
 			"prompt",
 		),
 		format: meta(
 			`Chat messages are shown as "Name: text". Reply with only your message, no name prefix.
-Write like a person in a Discord chat: one short line, all lowercase, no emojis, no headings or bullet lists.`,
+Write in the language most of the chat is in, even when the last message is short or has an english word in it.
+Write like a person in a Discord chat: all lowercase, no emojis, no headings or bullet lists.
+Keep it short: almost always one line, often just a few words. Only now and then, when you really have more to say, write two or three short lines instead; each line is sent as its own message.`,
 			"How replies are laid out, at the end of the prompt",
+			"prompt",
+		),
+		characterGuidance: meta(
+			`This is who you are. Let it shape what you talk about, what you know and what you care about, and stay consistent with it.
+Don't recite it or bring it all up at once; it comes out bit by bit, like with anyone.`,
+			"How the model should use its character, above the character sheet",
 			"prompt",
 		),
 		peopleGuidance: meta(
@@ -158,16 +228,27 @@ Don't bring these things up unless the conversation is already about them, and d
 		),
 		profileInstructions: advanced(
 			`You keep short notes on the people in a Discord chat, so a chat bot can recognise them later.
-Note lasting things about each person: interests, habits, opinions, how they write. Skip one-off topics, and skip jokes or reactions about what the bot said.
-Every note is about the person it is filed under. When a note mentions someone else, such as a parent, sibling or friend, always name whose it is ("Sam's dad", never just "dad" or "his dad"), and only note what that person said about them.
-Never write what other people did or said into someone else's notes, and never write it as the bot's own memory ("remembers", "recalls").
-At most 30 words per person. Keep old notes that still hold. Only include people whose notes changed.`,
+The chat is a transcript: every line starts with who wrote it, and the bot's own lines are marked (bot).
+
+Who a line is about:
+- "I", "me" and "my" are whoever wrote that line.
+- "you" and "your" in a line aimed at the bot are the bot, never the writer. "remember when your brother crashed the car" is about the bot's brother. The writer didn't crash anything, and neither did anyone they know.
+- Questions, teasing, jokes and made-up stories are not facts.
+
+What goes where:
+- Notes (this job): lasting things a person says about themselves or their own family and friends, like their job, school, where they live, interests, habits, opinions and how they write.
+- Lore (kept elsewhere, never in notes): the bot's own life, and things the whole group shares like running jokes and events.
+What someone says about the bot, about another person in the chat or about the group is never a fact about them. Neither is anything the bot says about them.
+
+For every new fact, copy the person's own words it comes from into quote, and say who it is about. Skip one-off topics and reactions to what the bot said.
+When a note mentions someone else, name whose it is ("Sam's dad", never just "dad" or "his dad"). Never write notes as the bot's own memory ("remembers", "recalls").
+Notes are at most 30 words per person and keep the old notes that still hold. Only include people with new facts about them.`,
 			"Instructions for the model that updates the notes on people",
 			"prompt",
 		),
 		selfLoreGuidance: meta(
 			`Facts about your own life, from earlier chats. Stay consistent with them, and you can make up new details that fit.
-This is background, not material: don't bring it up unless someone asks or the chat is already about it, and don't repeat a detail you've already mentioned.`,
+Now and then, when it fits, bring one up like people do ("that reminds me…"), but never force it, and don't repeat a detail you've already mentioned.`,
 			"How the model should use its own life, above those entries",
 			"prompt",
 		),
@@ -178,18 +259,29 @@ Never force a callback, and don't repeat one you've already made.`,
 			"prompt",
 		),
 		loreInstructions: advanced(
-			`You keep the lore for a chat bot in a Discord server. There are two kinds:
-- self: the life the bot makes up for itself while chatting (friends, family, where it lives, its job, things it has done).
-- server: things the group shares (running jokes, recurring topics, events, places). Never facts about one person; those are kept elsewhere.
+			`You keep the lore for a chat bot in a Discord server. The chat is a transcript: every line starts with who wrote it, and the bot's own lines are marked (bot).
 
-The chat is a transcript, and the bot's own lines are marked (bot).
-Save only lasting, new information. For self: only what the bot's own lines say about its own life. Not what it denies, not insults dressed up as answers, not nonsense it says to dodge a question. What other people say about their own lives is never self lore, even when the bot reacts to it. That includes their parents, family and friends, and what those people did; facts about people are kept elsewhere. For server: a joke or topic that keeps coming back, not a single remark.
+What goes where:
+- self: the life the bot makes up for itself while chatting (friends, family, where it lives, its job, things it has done). Only from what the bot's own lines say about its own life.
+- server: things the whole group shares: running jokes, recurring topics, events several people were part of, places. A joke or topic that keeps coming back, not a single remark.
+- Facts about one person in the chat (their job, family, tastes, what they did) are kept elsewhere, as notes. Never save them as lore of either kind.
+
+Who a line is about: "I", "me" and "my" are whoever wrote that line, and "you" and "your" in a line aimed at the bot are the bot. "remember when your brother crashed the car" is about the bot's brother: it's self lore only if the bot's own lines go along with it, and it's never something the writer did.
+For self, skip what the bot denies, insults dressed up as answers and nonsense it says to dodge a question. What other people say about their own lives is never self lore, even when the bot reacts to it.
+
 For every entry, copy the words it's based on from the chat into evidence, exactly as written.
-Skip anything already known, even when it's said again in other words. Never save an entry again just because it came up.
+Save only lasting, new information. Skip anything already known, even when it's said again in other words. Never save an entry again just because it came up.
 
 Use a name as the key when there is one, otherwise a short description ("the cousin"). Reuse existing keys exactly. When something listed under a description gets a name, save it under the name and set replaces to the old key. Write the full updated notes for every key you change, keeping what still holds, at most 40 words, in the chat's language.
 Return only entries that are new or changed. If nothing is, return an empty list.`,
 			"Instructions for the model that updates the lore",
+			"prompt",
+		),
+		judgeInstructions: advanced(
+			`You pick which of a few candidate replies {name}, a chat bot playing a regular member of a Discord server, should send next.
+Pick the one that sounds most like a real person in this chat: it fits what was just said, it's as long as the moment needs, and it says something of its own.
+Avoid ones that repeat {name}'s recent replies (the same opener, phrases, jokes or topics), sound like an AI or an assistant, or ask a question just to keep the chat going.`,
+			"Instructions for the model that picks the best candidate reply ({name} is the bot's name)",
 			"prompt",
 		),
 		repeatedOpenerNote: advanced(
@@ -197,9 +289,19 @@ Return only entries that are new or changed. If nothing is, return an empty list
 			"Note added after the last message when its recent replies keep starting with the same word ({word} is that word)",
 			"textarea",
 		),
+		oneLineNote: advanced(
+			"write just one line this time.",
+			"Note added after the last message when the reply has to be a single message (see multiMessageChance)",
+			"textarea",
+		),
 		skipNote: advanced(
 			`if the chat is clearly over (it's just ok, sure or ye, or a goodbye you already answered), reply with only {marker}. if someone answers you or tells you something, reply normally.`,
 			"Note added after the last message saying when it may stay quiet ({marker} is the skip marker). Only added when it wasn't tagged",
+			"textarea",
+		),
+		starterNote: advanced(
+			`it's been quiet in here for {hours}. start a new conversation like you would in a group chat: something from your day, something you've been thinking about, or a question for someone here. don't say that it's been quiet, and only pick up the old conversation if there's a good reason to.`,
+			"Note added after the chat when it starts a conversation ({hours} is how long it's been quiet)",
 			"textarea",
 		),
 		skipMarker: advanced(
@@ -225,6 +327,72 @@ Return only entries that are new or changed. If nothing is, return an empty list
 		replyLabel: advanced(
 			"(replying to {name})",
 			'Goes after the name on a chat message that\'s a discord reply, so it knows who a message is aimed at ({name} is who it replies to, or "you" for the bot. Empty to leave it out)',
+		),
+	},
+	// who the bot is, blank fields get made up and saved here the first time it chats
+	character: {
+		fillBlanks: meta(
+			true,
+			"Make up anything left blank when it next chats, and save it here (it takes a few seconds, so it's there from the reply after). Clear a field to have it made up again",
+		),
+		basics: meta("", "Age, gender, what they look like", "textarea"),
+		home: meta(
+			"",
+			"Where they live, who with, and where they grew up",
+			"textarea",
+		),
+		work: meta("", "Job or school, and what they think of it", "textarea"),
+		family: meta([] as string[], "Family, with names", "list"),
+		friends: meta(
+			[] as string[],
+			"Friends and love life outside this server, with names",
+			"list",
+		),
+		routine: meta(
+			"",
+			"A normal week: when they work, sleep, train, game and go out",
+			"textarea",
+		),
+		interests: meta(
+			[] as string[],
+			"Hobbies, and what they know a lot about",
+			"list",
+		),
+		tastes: meta(
+			[] as string[],
+			"Favourite music, games, shows and food",
+			"list",
+		),
+		opinions: meta(
+			[] as string[],
+			"Hot takes and things they'll argue about",
+			"list",
+		),
+		dislikes: meta(
+			[] as string[],
+			"Pet peeves and things they can't stand",
+			"list",
+		),
+		weaknesses: meta(
+			[] as string[],
+			"What they're bad at or know nothing about",
+			"list",
+		),
+		quirks: meta([] as string[], "Habits, and things they say a lot", "list"),
+		stories: meta(
+			[] as string[],
+			"Things that happened to them, stories they can tell",
+			"list",
+		),
+		fillInstructions: advanced(
+			`Make up a believable, ordinary person for a Discord bot called {name} to play in a group chat, so it has a life to talk about.
+Fill in only the fields asked for, and stay consistent with the ones already filled in.
+Be specific: real place names, a real job, names for family and friends, actual bands, games and dishes. Give them flaws and gaps, not just cool traits. Keep it everyday, like someone you'd actually know, not a quirky movie character.
+People in the server are likely in the {timeZone} time zone, so they live somewhere that fits.
+Quirks are what they do and say now and then (never "always"), not how they type; typing style is set elsewhere. Any slang or phrases they use are in {language}.
+Write in English. Text fields are at most 40 words, list fields 2 to 4 short items.`,
+			"Instructions for the model that makes up the blank fields ({name} is the bot's name, {timeZone} the chat time zone, {language} the chat language)",
+			"prompt",
 		),
 	},
 	commands: {

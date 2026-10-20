@@ -31,15 +31,16 @@ export const openerHabit = (recent: string[], limit: number) => {
 	return word && times && times >= limit ? word : null;
 };
 
-// only after a short message like "ok" or "will do", and never when it just asked something
+// short enough that it might not need an answer, like "ok" or "will do"
+export const isShort = (text: string, maxWords: number) =>
+	maxWords > 0 && (text.match(/[\p{L}\p{N}]+/gu) ?? []).length <= maxWords;
+
+// only after a short message, and never when it just asked something
 export const mayStayQuiet = (
 	text: string,
 	recent: string[],
 	maxWords: number,
-) =>
-	maxWords > 0 &&
-	(text.match(/[\p{L}\p{N}]+/gu) ?? []).length <= maxWords &&
-	!recent.at(-1)?.trim().endsWith("?");
+) => isShort(text, maxWords) && !recent.at(-1)?.trim().endsWith("?");
 
 // the model sometimes wraps the marker in other text, so it only has to appear
 export const isSkip = (reply: string, marker: string) =>

@@ -8,6 +8,7 @@ import type { ModelMessage } from "ai";
 import { and, eq, inArray } from "drizzle-orm";
 
 import "#/env";
+import { fillCharacter } from "#/features/chat/character";
 import { loadLore, selectLore } from "#/features/chat/lore";
 import {
 	firstWord,
@@ -18,6 +19,7 @@ import {
 import type { People } from "#/features/chat/profiles";
 import { buildInstructions, type ChatContext } from "#/features/chat/prompt";
 import { type Composed, composeReply } from "#/features/chat/reply";
+import { isLoop } from "#/features/chat/variety";
 import { words } from "#/lib/utils/text";
 
 const USAGE = `Usage: pnpm test:prompt <scenario file | message> [options]
@@ -27,7 +29,9 @@ const USAGE = `Usage: pnpm test:prompt <scenario file | message> [options]
   -g, --guild <id>        whose settings, lore and profiles to use
                           (the only guild with settings, if there is one)
   -m, --model <id>        instead of the guild's chat model
-  -t, --temperature <n>   instead of the model's default
+  -t, --temperature <n>   instead of the guild's temperature
+      --candidates <n>    replies to choose between, instead of the guild's
+      --at <time>         what time it is for the bot, like "2026-10-17 23:40"
       --name <name>       the bot's name in the prompt (klyndre)
       --mention           as if it was tagged, so it never stays quiet
       --no-lore           leave lore out
@@ -52,6 +56,8 @@ const { values, positionals } = parseArgs({
 		guild: { type: "string", short: "g" },
 		model: { type: "string", short: "m" },
 		temperature: { type: "string", short: "t" },
+		at: { type: "string" },
+		candidates: { type: "string" },
 		name: { type: "string", default: "klyndre" },
 		mention: { type: "boolean", default: false },
 		lore: { type: "boolean", default: true },
@@ -155,22 +161,6 @@ async function pool<T>(count: number, limit: number, task: () => Promise<T>) {
 	return results;
 }
 
-// a run of words straight after the same run, like "ok bro ok bro"
-function isLoop(text: string) {
-	const w = text.split(/\s+/);
-	for (let size = 2; size * 2 <= w.length; size++) {
-		for (let i = 0; i + size * 2 <= w.length; i++) {
-			if (
-				w.slice(i, i + size).join(" ") ===
-				w.slice(i + size, i + size * 2).join(" ")
-			) {
-				return true;
-			}
-		}
-	}
-	return false;
-}
-
 if (values.help || !positionals[0]) {
 	console.log(USAGE);
 	process.exit(values.help ? 0 : 1);
@@ -179,6 +169,11 @@ if (values.help || !positionals[0]) {
 const runs = number("runs", values.runs) ?? 20;
 const concurrency = number("concurrency", values.concurrency) ?? 6;
 const temperature = number("temperature", values.temperature);
+const candidates = number("candidates", values.candidates);
+const now = values.at ? new Date(values.at) : undefined;
+if (now && Number.isNaN(now.getTime())) {
+	throw new Error(`--at is not a time: ${values.at}`);
+}
 
 const { lines, last } = await loadScenario(positionals[0]);
 const guildId = await resolveGuild();
@@ -188,6 +183,7 @@ const context: ChatContext = {
 	botName: values.name,
 	server: SERVER,
 	channel: CHANNEL,
+	now,
 };
 
 const history = toHistory(lines);
@@ -204,6 +200,9 @@ const turn: Turn = {
 	canSkip:
 		!values.mention && mayStayQuiet(last.text, recent, chat.skipMaxWords),
 };
+
+// the live bot makes them up in the background, here every run should have them
+await fillCharacter(guildId, values.name);
 
 // lore is picked again every run, the random fill changes like it would live
 const instructionsFor = () =>
@@ -224,7 +223,9 @@ console.log(
 	[
 		`guild ${guildId}`,
 		`model ${values.model ?? chat.model}`,
-		temperature !== undefined && `temperature ${temperature}`,
+		`temperature ${temperature ?? chat.temperature}`,
+		`best of ${candidates ?? chat.candidates}${chat.judgeCandidates ? " (judged)" : ""}`,
+		now && `at ${now.toLocaleString("en-GB", { timeZone: chat.timeZone })}`,
 		`lore ${loreEntries.length > 0 ? `${loreEntries.length} ${loreEntries.length === 1 ? "entry" : "entries"}` : "off"}`,
 		`profiles ${values.profiles && chat.profilesEnabled ? "on" : "off"}`,
 		turn.canSkip && "may stay quiet",
@@ -247,6 +248,7 @@ const results = await pool(runs, concurrency, async (): Promise<Result> => {
 		{
 			model: values.model,
 			temperature,
+			candidates,
 		},
 	);
 	const number = ++printed;
@@ -254,9 +256,12 @@ const results = await pool(runs, concurrency, async (): Promise<Result> => {
 		const tags = [
 			composed.outcome !== "reply" && composed.outcome,
 			composed.retried && "retried",
+			composed.candidates > 1 && `of ${composed.candidates}`,
 			composed.finishReason === "length" && "token cap",
 		].filter(Boolean);
-		const text = composed.outcome === "quiet" ? "" : composed.text;
+		// each line is its own message in discord
+		const text =
+			composed.outcome === "quiet" ? "" : composed.text.replaceAll("\n", " / ");
 		console.log(
 			`${String(number).padStart(4)}  ${text}${tags.length ? `  [${tags.join(", ")}]` : ""}`,
 		);
@@ -286,6 +291,9 @@ const average = (pick: (result: Result) => number) =>
 console.log(
 	`avg ${average((result) => result.text.split(/\s+/).length)} words, ${average((result) => result.seconds)}s per reply`,
 );
+
+const multi = replies.filter((result) => result.text.includes("\n")).length;
+if (multi) console.log(`sent as several messages: ${of(multi)}`);
 
 const retried = results.filter((result) => result.retried).length;
 if (retried) console.log(`opener retries: ${retried}/${runs}`);

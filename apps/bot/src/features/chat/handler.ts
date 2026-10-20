@@ -4,6 +4,7 @@ import type { Message } from "discord.js";
 import { buildHistory } from "#/features/chat/history";
 import { maybeUpdateLore, noteUsage, pickLore } from "#/features/chat/lore";
 import {
+	isShort,
 	mayStayQuiet,
 	recentReplies,
 	type Turn,
@@ -62,8 +63,12 @@ async function replyReason(
 // answering those again just repeats that reply, so only a tag gets another one
 const alreadyRead = new Map<string, Set<string>>();
 
+const seconds = (from: number, to: number) =>
+	`${((to - from) / 1000).toFixed(1)}s`;
+
 export const handleMessage = async (message: Message) => {
 	if (!message.inGuild()) return;
+	const received = performance.now();
 
 	const reason = await replyReason(message);
 	if (!reason) return;
@@ -74,8 +79,12 @@ export const handleMessage = async (message: Message) => {
 		return;
 	}
 
-	const { turnWaitLimitMs } = await getSettings(message.guildId, "chat");
+	const { turnWaitLimitMs, skipMaxWords } = await getSettings(
+		message.guildId,
+		"chat",
+	);
 	await inTurn(message.channelId, turnWaitLimitMs, async () => {
+		const started = performance.now();
 		if (
 			reason !== "mention" &&
 			alreadyRead.get(message.channelId)?.has(message.id)
@@ -86,12 +95,16 @@ export const handleMessage = async (message: Message) => {
 			return;
 		}
 
+		// when it's going to answer anyway, it types while it reads the chat and
+		// writes, like someone who saw the message and started typing
+		if (reason === "mention" || !isShort(message.cleanContent, skipMaxWords)) {
+			void message.channel.sendTyping().catch(() => {});
+		}
+
 		const { messages, people, humanText, later } = await buildHistory(message);
+		const read = performance.now();
 		const lore = await pickLore(message, humanText);
-		const { openerMemory, skipMaxWords } = await getSettings(
-			message.guildId,
-			"chat",
-		);
+		const { openerMemory } = await getSettings(message.guildId, "chat");
 		const recent = recentReplies(messages, openerMemory);
 		const turn: Turn = {
 			recent,
@@ -104,7 +117,14 @@ export const handleMessage = async (message: Message) => {
 			people,
 			lore,
 		);
+		const prompted = performance.now();
 		const reply = await sendReply(message, instructions, messages, turn);
+		if (reply) {
+			const now = performance.now();
+			console.log(
+				`[chat] answered in ${seconds(received, now)}: waiting ${seconds(received, started)}, reading the chat ${seconds(started, read)}, prompt ${seconds(read, prompted)}, writing and sending ${seconds(prompted, now)}`,
+			);
+		}
 
 		void maybeUpdateNotes(message, people, messages);
 		if (!reply) return;
