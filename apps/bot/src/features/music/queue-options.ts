@@ -1,5 +1,7 @@
 import type { Settings } from "@klyndre/config/schemas";
 
+import { mixWithVoice } from "#/features/voice/mixer";
+
 // fixed when a queue is created, so panel changes apply from the next queue
 export const queueOptions = (settings: Settings<"music">) =>
 	({
@@ -17,4 +19,6 @@ export const queueOptions = (settings: Settings<"music">) =>
 		leaveOnEnd: settings.leaveOnEnd,
 		leaveOnEndCooldown: settings.leaveOnEndMs,
 		leaveOnStop: settings.leaveOnStop,
+		// lets the AI talk over the music in a voice call
+		onAfterCreateStream: mixWithVoice,
 	}) as const;
