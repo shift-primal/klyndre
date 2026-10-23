@@ -24,12 +24,12 @@ packages/
   config/     per-server settings: schemas, defaults, cache, live reload
 ```
 
-Both apps talk to the same Postgres database. Settings are saved per server, in modules (`chat`, `channels`, `personality`, `character`, `commands`, `music`), and every field has a default in `packages/config/src/defaults.ts`. When the dashboard saves a setting, Postgres sends a `NOTIFY`, and the bot drops its cached copy and picks up the change right away, without a restart. Secrets like YouTube cookies work the same way.
+Both apps talk to the same Postgres database. Settings are saved per server, in modules (`identity`, `style`, `replies`, `memory`, `music`, `commands`, `internals`), and every field has a default in `packages/config/src/defaults.ts`. When the dashboard saves a setting, Postgres sends a `NOTIFY`, and the bot drops its cached copy and picks up the change right away, without a restart. Secrets like YouTube cookies work the same way.
 
 The bot is made of **features** (`apps/bot/src/features`), each with its own commands and event handlers:
 
 - **general**: `help` and `ping`.
-- **chat**: decides when to reply, builds a prompt from the recent chat history, the server's lore and its notes on the people talking, and sends one reply at a time per channel. After replying it may update its notes on people and its lore in the background.
+- **chat**: decides when to reply, builds a prompt from the recent chat history, its character sheet, the server's lore and its notes on the people talking, and sends one reply at a time per channel. After replying it may update its notes on people, the server lore and its character sheet in the background.
 - **music**: a [discord-player](https://discord-player.js.org) queue per server. YouTube is the main source (through `discord-player-youtubei`, see [How YouTube is played](#how-youtube-is-played)). Spotify links are resolved through the Spotify API and played from YouTube. A search goes to Spotify first, and only counts when a result has most of the words typed; otherwise it searches YouTube instead (`match.ts`). A Spotify song plays from the YouTube video closest to it in title, artist and length, so the official audio wins over a longer music video. The next song in the queue starts loading 20 seconds before the current one ends, so songs follow each other without a gap.
 
 Every command works both as a slash command (`/play`) and as a text command with the server's prefix (`-play`, by default).
@@ -46,18 +46,20 @@ The bot replies when:
 
 In a **starter channel**, it also starts a conversation now and then once the channel has been quiet for a while (3 hours by default, at most twice a day, between 10:00 and 23:00), as long as the last message there isn't its own.
 
-None of these channels are set up out of the box, so add them under _Channels_ in the dashboard. When a message is short and the conversation seems over ("ok", "ye"), it can choose to stay quiet unless it was tagged.
+None of these channels are set up out of the box, so add them under _Replies_ in the dashboard. It answers every message it's triggered by, and starts typing as soon as it knows it will.
 
-It writes a few replies at once (3 by default) and sends the best one: the code scores them for repeating its own recent replies, and the model picks the most natural of the rest. Each line of a reply is sent as its own message, up to 3.
+It writes a few replies at once (3 by default) and sends the best one: the code scores them for repeating its own recent replies, and the model picks the most natural of the rest. Each line of a reply is sent as its own message: now and then (15% of replies by default) it may write up to 3 lines, otherwise it's asked for one.
 
-It has a **character**: a sheet with its age, home, job, family, friends, weekly routine, tastes, opinions, flaws and a few stories, which goes in every prompt. Anything left blank on the sheet is made up in the background the first time it chats (ready from its next reply) and saved under _Character_ in the dashboard. Edit any of it there, or clear a field to have it made up again.
+How it writes (language, lowercase, emojis, reply length, extra notes) is set under _Style_, and each setting becomes its own line in the prompt, so the prompt can't say the opposite of a setting.
+
+It has a **character**: a sheet with its basics, home, work, routine, family, friends, interests, opinions, quirks and stories. Everything but the stories goes in every prompt. Anything left blank is made up in the background (ready from its next reply), and after a reply where it talks about itself ("my brother…"), what it said about its own life is saved to the sheet, but only when the bot's own words back it up. Stories only go in the prompt when someone brings them up, so it doesn't retell them on its own. The sheet is on the _Character_ page in the dashboard, where each item shows whether you wrote it, it was made up, or it was learned in chat. Lock an item or a whole field to keep it as written, or empty an unlocked field to have it made up again.
 
 It remembers things in two ways:
 
 - **Profiles**: short notes on each person, only from what they say about themselves.
-- **Lore**: facts about its own made-up life (_self_) and the server's running jokes and shared history (_server_). Relevant entries go in the prompt when the chat touches on them.
+- **Lore**: the server's running jokes and shared history. Relevant entries go in the prompt when the chat touches on them.
 
-Both are updated automatically and can be edited in the dashboard, where lore entries can also be locked so the bot never changes or prunes them. `-reset` makes it forget the chat history in that channel, plus its notes on you.
+Both are updated automatically and can be edited in the dashboard, where lore entries can also be locked so the bot never changes or prunes them. `-reset` makes it forget the chat history in that channel. `-hardreset` also wipes its notes on you.
 
 ### Commands
 
@@ -67,7 +69,8 @@ Both are updated automatically and can be edited in the dashboard, where lore en
 | -------------------------- | ---------------- | ------------------------------------------------------------ |
 | `help [topic]`             | `h`, `?`         | Help for a feature or command                                |
 | `ping`                     |                  | Check that the bot is online                                 |
-| `reset`                    |                  | Forget this channel's chat history and your notes            |
+| `reset`                    |                  | Forget this channel's chat history                           |
+| `hardreset`                |                  | Forget this channel's chat history and your notes            |
 | `play <song>`              | `p`              | Add a song, link or playlist to the queue                    |
 | `playnext <song>`          | `pn`             | Add a song right after the current one                       |
 | `playnow <song>`           | `pnow`           | Skip to this song now, keeping the queue                     |
@@ -87,10 +90,11 @@ Where a command takes a `<track>`, use its number from `queue` or part of its ti
 
 ## The dashboard
 
-Log in, pick a server the bot is in, and you get three pages:
+Log in, pick a server the bot is in, and you get four pages:
 
-- **Settings**: every setting module as a tab. _Personality_ holds the prompts (persona, rules, format and so on), which can be saved and loaded as presets. _Character_ is its character sheet.
-- **Lore**: the bot's self and server lore.
+- **Settings**: every setting module as a tab, grouped by what it controls: _Identity_ (persona, behaviour, how the character sheet grows), _Style_ (how it writes), _Replies_ (where, when and how it answers), _Memory_ (notes and lore), _Music_, _Commands_ and _Internals_ (the prompt texts that work fine as they are). The persona can be saved and loaded as presets.
+- **Character**: its character sheet.
+- **Lore**: the server lore.
 - **Profiles**: its notes on people.
 
 There is also a **Secrets** page for the YouTube cookies (see [YouTube cookies](#youtube-cookies)).
@@ -271,4 +275,4 @@ pnpm db:generate
 
 **Adding a command.** Write a `Command` (see `apps/bot/src/core/commands/types.ts`) in the feature's `commands/` folder, add it to that folder's `index.ts`, and run `pnpm bot:register`. Set `devOnly: true` to limit it to admins and the dev role from the _Commands_ settings.
 
-**Prompt testing.** `test:prompt` generates a batch of replies for a message or a scenario file, using a server's real settings, lore and profiles, so you can see how a prompt change affects them without touching Discord. Run it without arguments for the options.
+**Prompt testing.** `test:prompt` generates a batch of replies for a message or a scenario file, using a server's real settings, character, lore and profiles, so you can see how a prompt change affects them without touching Discord. Run it without arguments for the options.

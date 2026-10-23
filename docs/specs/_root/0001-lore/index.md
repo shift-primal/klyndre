@@ -1,7 +1,7 @@
 # 0001. Lore: the bot's own life and the server's running jokes
 
 **Date**: 2026-10-05
-**Status**: Accepted
+**Status**: Accepted (self lore part superseded by [0002](../0002-consolidate-chat-settings/index.md))
 
 ## Summary
 

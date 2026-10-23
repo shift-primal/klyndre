@@ -2,7 +2,12 @@ import { getSettings } from "@klyndre/config";
 import { generateText, type ModelMessage } from "ai";
 
 import { chatModel } from "#/features/chat/model";
-import { firstWord, openerHabit } from "#/features/chat/openers";
+import {
+	closerHabit,
+	closingWords,
+	firstWord,
+	openerHabit,
+} from "#/features/chat/openers";
 import { textOf, transcriptOf } from "#/features/chat/transcript";
 import { words } from "#/lib/utils/text";
 
@@ -41,6 +46,7 @@ export type Candidate = { text: string; hitCap: boolean };
 type Context = {
 	recent: string[];
 	habit: string | null;
+	closer: string | null;
 	said: Set<string>;
 };
 
@@ -49,6 +55,13 @@ export function repetitionOf({ text, hitCap }: Candidate, context: Context) {
 	const opener = firstWord(text);
 	if (context.habit && opener === context.habit) score += 3;
 	if (context.recent.some((reply) => firstWord(reply) === opener)) score += 1;
+	if (
+		context.closer &&
+		!context.said.has(context.closer) &&
+		closingWords(text).includes(context.closer)
+	) {
+		score += 3;
+	}
 
 	const own = context.recent.join("\n");
 	const ownPhrases = phrases(own, 3);
@@ -115,6 +128,7 @@ export async function pickReply(
 	if (candidates.length < 2) return 0;
 
 	const habit = openerHabit(recent);
+	const closer = closerHabit(recent);
 	const said = words(
 		history
 			.filter((msg) => msg.role === "user")
@@ -122,7 +136,7 @@ export async function pickReply(
 			.join("\n"),
 	);
 	const scores = candidates.map((candidate) =>
-		repetitionOf(candidate, { recent, habit, said }),
+		repetitionOf(candidate, { recent, habit, closer, said }),
 	);
 	const leastRepetitive = scores.indexOf(Math.min(...scores));
 
