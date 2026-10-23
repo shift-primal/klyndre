@@ -19,9 +19,7 @@ import { registerMusicButtons } from "#/features/music/ui/interactions";
 let cookies = "";
 
 export async function setupPlayer(client: Client) {
-	// always through ffmpeg, so every song reaches the voice mixer as raw pcm
-	// (see features/voice/mixer.ts) instead of sometimes as opus
-	const player = new Player(client, { skipFFmpeg: false });
+	const player = new Player(client);
 	cookies = await loadCookies();
 
 	const spotify = await player.extractors.register(CustomSpotifyExtractor, {});

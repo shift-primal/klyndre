@@ -163,22 +163,6 @@ export const musicSettings = z.object({
 	lagLogMs: field(count, d.music.lagLogMs),
 });
 
-export const voiceSettings = z.object({
-	model: field(z.string().min(1), d.voice.model),
-	voice: field(z.string().min(1), d.voice.voice),
-	instructions: field(z.string(), d.voice.instructions),
-	answerOnlyWhenNamed: field(z.boolean(), d.voice.answerOnlyWhenNamed),
-	names: field(z.string(), d.voice.names),
-	followUpWindowMs: field(count, d.voice.followUpWindowMs),
-	languageHint: field(z.string(), d.voice.languageHint),
-	musicDuckVolume: field(chance, d.voice.musicDuckVolume),
-	turnSilenceMs: field(z.int().min(200).max(5000), d.voice.turnSilenceMs),
-	minSpeechMs: field(z.int().min(0).max(5000), d.voice.minSpeechMs),
-	idleDisconnectMs: field(count, d.voice.idleDisconnectMs),
-	leaveWhenAloneMs: field(count, d.voice.leaveWhenAloneMs),
-	memoryTurns: field(z.int().min(0).max(50), d.voice.memoryTurns),
-});
-
 export const moduleSchemas = {
 	chat: chatSettings,
 	channels: channelsSettings,
@@ -186,7 +170,6 @@ export const moduleSchemas = {
 	character: characterSettings,
 	commands: commandsSettings,
 	music: musicSettings,
-	voice: voiceSettings,
 } as const;
 
 export type ModuleName = keyof typeof moduleSchemas;
