@@ -19,8 +19,6 @@ const shutDown = async (code: number) => {
 	process.exit(code);
 };
 
-// a dev bot in any other server is most likely running with the production
-// token, and would answer there next to the real one
 const checkDevGuilds = async (c: Client<true>) => {
 	if (!env.DEV_GUILD_ID) return;
 	const others = c.guilds.cache.filter((g) => g.id !== env.DEV_GUILD_ID);

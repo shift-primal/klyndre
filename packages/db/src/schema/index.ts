@@ -1,5 +1,6 @@
 export * from "./app-secrets";
 export * from "./auth";
+export * from "./character";
 export * from "./guild-settings";
 export * from "./lore-entries";
 export * from "./pings";

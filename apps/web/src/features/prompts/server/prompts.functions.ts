@@ -20,7 +20,6 @@ export const listPresets = createServerFn({ method: "GET" })
 			.orderBy(desc(promptPresets.updatedAt)),
 	);
 
-// saving under an existing name overwrites that preset
 export const savePreset = createServerFn({ method: "POST" })
 	.middleware([adminMiddleware])
 	.validator(

@@ -19,7 +19,6 @@ type Props = {
 	disabled?: boolean;
 };
 
-// what the dialog is doing: adding a new item, or editing the one at index
 type Editing = { index: number | null; text: string };
 
 export const ListField = ({ id, label, value, onChange, disabled }: Props) => {
@@ -44,8 +43,7 @@ export const ListField = ({ id, label, value, onChange, disabled }: Props) => {
 				<ul className="flex flex-col gap-1">
 					{value.map((item, index) => (
 						<li
-							// items can repeat, and the list only changes as a whole
-							// biome-ignore lint/suspicious/noArrayIndexKey: see above
+							// biome-ignore lint/suspicious/noArrayIndexKey: items can repeat, and the list only changes as a whole
 							key={index}
 							className="flex items-start gap-2 rounded-lg border px-3 py-2 text-sm"
 						>
@@ -122,7 +120,6 @@ export const ListField = ({ id, label, value, onChange, disabled }: Props) => {
 								)
 							}
 							onKeyDown={(event) => {
-								// enter saves, shift+enter makes a new line
 								if (event.key === "Enter" && !event.shiftKey) {
 									event.preventDefault();
 									save();

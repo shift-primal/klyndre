@@ -13,7 +13,6 @@ interface SavedQueue {
 
 const saved = new Map<string, SavedQueue>();
 
-// every way a queue ends (stop, the stop button, being kicked, an empty channel) goes through delete()
 export function registerQueueSaving(player: Player) {
 	player.events.on("queueDelete", (queue: GuildQueue) => {
 		const tracks = [queue.currentTrack, ...queue.tracks.toArray()].filter(

@@ -11,7 +11,6 @@ const body = createRegistry(features).commands.map(toSlashJSON);
 
 const rest = new REST().setToken(DISCORD_TOKEN);
 
-// guild commands update right away, global ones can take a while
 if (DEV_GUILD_ID) {
 	try {
 		await rest.put(

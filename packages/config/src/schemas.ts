@@ -3,8 +3,6 @@ import { z } from "zod";
 import { defaults as d } from "./defaults";
 import type { Meta } from "./meta";
 
-// Only structure lives here, default values and descriptions are in defaults.ts
-
 const field = <T extends z.ZodType>(type: T, m: Meta<z.output<T>>) =>
 	type.default(m.default as never).meta({
 		description: m.description,
@@ -26,124 +24,103 @@ const isTimeZone = (name: string) => {
 };
 const timeZone = z.string().refine(isTimeZone, "Unknown time zone");
 
-export const chatSettings = z.object({
-	model: field(z.string().min(1), d.chat.model),
-	temperature: field(z.number().min(0).max(2), d.chat.temperature),
-	randomReplyChance: field(chance, d.chat.randomReplyChance),
-	replyToMentionsAnywhere: field(z.boolean(), d.chat.replyToMentionsAnywhere),
-	historyLimit: field(z.int().min(1).max(100), d.chat.historyLimit),
-	laterLimit: field(z.int().min(0).max(100), d.chat.laterLimit),
-	threadLimit: field(z.int().min(0).max(50), d.chat.threadLimit),
-	maxImages: field(count, d.chat.maxImages),
-	imageMaxAgeMs: field(count, d.chat.imageMaxAgeMs),
-	maxReplyTokens: field(z.int().min(16).max(4000), d.chat.maxReplyTokens),
-	maxMessages: field(z.int().min(1).max(10), d.chat.maxMessages),
-	multiMessageChance: field(chance, d.chat.multiMessageChance),
-	followUpTypingMs: field(z.int().min(0).max(500), d.chat.followUpTypingMs),
-	lowercaseReplies: field(z.boolean(), d.chat.lowercaseReplies),
-	stripEmojis: field(z.boolean(), d.chat.stripEmojis),
-	turnWaitLimitMs: field(count, d.chat.turnWaitLimitMs),
-	language: field(z.string(), d.chat.language),
-	starterQuietMs: field(count, d.chat.starterQuietMs),
-	starterMaxPerDay: field(count, d.chat.starterMaxPerDay),
-	starterFromHour: field(z.int().min(0).max(23), d.chat.starterFromHour),
-	starterToHour: field(z.int().min(1).max(24), d.chat.starterToHour),
-	starterChance: field(chance, d.chat.starterChance),
-	quirksShown: field(z.int().min(0).max(20), d.chat.quirksShown),
-	timeZone: field(timeZone, d.chat.timeZone),
-	profilesEnabled: field(z.boolean(), d.chat.profilesEnabled),
-	profileUpdateEvery: field(z.int().min(1), d.chat.profileUpdateEvery),
+export const replyLengths = ["short", "normal", "long"] as const;
+export type ReplyLength = (typeof replyLengths)[number];
+
+export const identitySettings = z.object({
+	persona: field(z.string(), d.identity.persona),
+	behaviour: field(z.string(), d.identity.behaviour),
+	makeUpBlanks: field(z.boolean(), d.identity.makeUpBlanks),
+	learnFromChat: field(z.boolean(), d.identity.learnFromChat),
+	quirksShown: field(z.int().min(0).max(20), d.identity.quirksShown),
+	storiesShown: field(z.int().min(0).max(5), d.identity.storiesShown),
+	selfWords: field(z.array(z.string()), d.identity.selfWords),
+	characterEvidenceWords: field(
+		z.int().min(1).max(20),
+		d.identity.characterEvidenceWords,
+	),
+});
+
+export const styleSettings = z.object({
+	language: field(z.string(), d.style.language),
+	replyLength: field(z.enum(replyLengths), d.style.replyLength),
+	lowercaseReplies: field(z.boolean(), d.style.lowercaseReplies),
+	stripEmojis: field(z.boolean(), d.style.stripEmojis),
+	maxMessages: field(z.int().min(1).max(10), d.style.maxMessages),
+	multiMessageChance: field(chance, d.style.multiMessageChance),
+	styleNotes: field(z.string(), d.style.styleNotes),
+	followUpTypingMs: field(z.int().min(0).max(500), d.style.followUpTypingMs),
+});
+
+export const repliesSettings = z.object({
+	aiChannelIds: field(ids, d.replies.aiChannelIds),
+	randomReplyChannelIds: field(ids, d.replies.randomReplyChannelIds),
+	starterChannelIds: field(ids, d.replies.starterChannelIds),
+	replyToMentionsAnywhere: field(
+		z.boolean(),
+		d.replies.replyToMentionsAnywhere,
+	),
+	randomReplyChance: field(chance, d.replies.randomReplyChance),
+	starterQuietMs: field(count, d.replies.starterQuietMs),
+	starterMaxPerDay: field(count, d.replies.starterMaxPerDay),
+	model: field(z.string().min(1), d.replies.model),
+	temperature: field(z.number().min(0).max(2), d.replies.temperature),
+	candidates: field(z.int().min(1).max(8), d.replies.candidates),
+	fallbackReply: field(z.string(), d.replies.fallbackReply),
+	contentFilterReply: field(z.string(), d.replies.contentFilterReply),
+	notHereReply: field(z.string(), d.replies.notHereReply),
+	historyLimit: field(z.int().min(1).max(100), d.replies.historyLimit),
+	laterLimit: field(z.int().min(0).max(100), d.replies.laterLimit),
+	threadLimit: field(z.int().min(0).max(50), d.replies.threadLimit),
+	maxImages: field(count, d.replies.maxImages),
+	imageMaxAgeMs: field(count, d.replies.imageMaxAgeMs),
+	maxReplyTokens: field(z.int().min(16).max(4000), d.replies.maxReplyTokens),
+	turnWaitLimitMs: field(count, d.replies.turnWaitLimitMs),
+	timeZone: field(timeZone, d.replies.timeZone),
+});
+
+export const memorySettings = z.object({
+	profilesEnabled: field(z.boolean(), d.memory.profilesEnabled),
+	loreEnabled: field(z.boolean(), d.memory.loreEnabled),
+	loreShown: field(z.int().min(0).max(30), d.memory.loreShown),
+	loreCooldownReplies: field(count, d.memory.loreCooldownReplies),
+	profileUpdateEvery: field(z.int().min(1), d.memory.profileUpdateEvery),
 	profileEvidenceWords: field(
 		z.int().min(1).max(20),
-		d.chat.profileEvidenceWords,
+		d.memory.profileEvidenceWords,
 	),
-	candidates: field(z.int().min(1).max(8), d.chat.candidates),
-	judgeCandidates: field(z.boolean(), d.chat.judgeCandidates),
-	openerMemory: field(z.int().min(0).max(20), d.chat.openerMemory),
-	openerRepeatLimit: field(count, d.chat.openerRepeatLimit),
-	skipMaxWords: field(z.int().min(0).max(50), d.chat.skipMaxWords),
-	quietTypingMs: field(z.int().min(0).max(10_000), d.chat.quietTypingMs),
-	loreEnabled: field(z.boolean(), d.chat.loreEnabled),
-	loreShown: field(z.int().min(0).max(30), d.chat.loreShown),
-	loreRandomFill: field(z.int().min(0).max(10), d.chat.loreRandomFill),
-	loreCooldownReplies: field(count, d.chat.loreCooldownReplies),
-	loreUpdateEvery: field(z.int().min(1), d.chat.loreUpdateEvery),
-	loreMaxEntries: field(z.int().min(1), d.chat.loreMaxEntries),
-	loreMaxNewPerUpdate: field(count, d.chat.loreMaxNewPerUpdate),
-	loreKeyWordLength: field(z.int().min(1).max(20), d.chat.loreKeyWordLength),
-	loreNoteWordLength: field(z.int().min(1).max(20), d.chat.loreNoteWordLength),
-	loreRareWordLimit: field(z.int().min(1), d.chat.loreRareWordLimit),
-	loreEvidenceWords: field(z.int().min(1).max(20), d.chat.loreEvidenceWords),
-	loreUpdateContext: field(count, d.chat.loreUpdateContext),
+	loreUpdateEvery: field(z.int().min(1), d.memory.loreUpdateEvery),
+	loreMaxEntries: field(z.int().min(1), d.memory.loreMaxEntries),
+	loreMaxNewPerUpdate: field(count, d.memory.loreMaxNewPerUpdate),
+	loreKeyWordLength: field(z.int().min(1).max(20), d.memory.loreKeyWordLength),
+	loreNoteWordLength: field(
+		z.int().min(1).max(20),
+		d.memory.loreNoteWordLength,
+	),
+	loreRareWordLimit: field(z.int().min(1), d.memory.loreRareWordLimit),
+	loreEvidenceWords: field(z.int().min(1).max(20), d.memory.loreEvidenceWords),
+	loreUpdateContext: field(count, d.memory.loreUpdateContext),
 });
 
-export const channelsSettings = z.object({
-	aiChannelIds: field(ids, d.channels.aiChannelIds),
-	randomReplyChannelIds: field(ids, d.channels.randomReplyChannelIds),
-	starterChannelIds: field(ids, d.channels.starterChannelIds),
-	musicChannelIds: field(ids, d.channels.musicChannelIds),
-});
-
-export const characterSettings = z.object({
-	fillBlanks: field(z.boolean(), d.character.fillBlanks),
-	basics: field(z.string(), d.character.basics),
-	home: field(z.string(), d.character.home),
-	work: field(z.string(), d.character.work),
-	family: field(z.array(z.string()), d.character.family),
-	friends: field(z.array(z.string()), d.character.friends),
-	routine: field(z.string(), d.character.routine),
-	interests: field(z.array(z.string()), d.character.interests),
-	tastes: field(z.array(z.string()), d.character.tastes),
-	opinions: field(z.array(z.string()), d.character.opinions),
-	dislikes: field(z.array(z.string()), d.character.dislikes),
-	weaknesses: field(z.array(z.string()), d.character.weaknesses),
-	quirks: field(z.array(z.string()), d.character.quirks),
-	stories: field(z.array(z.string()), d.character.stories),
-	fillInstructions: field(z.string().min(1), d.character.fillInstructions),
-});
-
-// the parts of the character sheet, in the order the prompt shows them
-export const characterTraits = [
-	"basics",
-	"home",
-	"work",
-	"family",
-	"friends",
-	"routine",
-	"interests",
-	"tastes",
-	"opinions",
-	"dislikes",
-	"weaknesses",
-	"quirks",
-	"stories",
-] as const satisfies (keyof z.output<typeof characterSettings>)[];
-export type CharacterTrait = (typeof characterTraits)[number];
-
-export const personalitySettings = z.object({
-	persona: field(z.string(), d.personality.persona),
-	characterGuidance: field(z.string(), d.personality.characterGuidance),
-	rules: field(z.string(), d.personality.rules),
-	format: field(z.string(), d.personality.format),
-	peopleGuidance: field(z.string(), d.personality.peopleGuidance),
+export const internalsSettings = z.object({
+	characterGuidance: field(z.string(), d.internals.characterGuidance),
+	storiesGuidance: field(z.string(), d.internals.storiesGuidance),
+	peopleGuidance: field(z.string(), d.internals.peopleGuidance),
+	serverLoreGuidance: field(z.string(), d.internals.serverLoreGuidance),
+	fillInstructions: field(z.string().min(1), d.internals.fillInstructions),
+	characterInstructions: field(
+		z.string().min(1),
+		d.internals.characterInstructions,
+	),
 	profileInstructions: field(
 		z.string().min(1),
-		d.personality.profileInstructions,
+		d.internals.profileInstructions,
 	),
-	selfLoreGuidance: field(z.string(), d.personality.selfLoreGuidance),
-	serverLoreGuidance: field(z.string(), d.personality.serverLoreGuidance),
-	loreInstructions: field(z.string().min(1), d.personality.loreInstructions),
-	judgeInstructions: field(z.string().min(1), d.personality.judgeInstructions),
-	repeatedOpenerNote: field(z.string(), d.personality.repeatedOpenerNote),
-	oneLineNote: field(z.string(), d.personality.oneLineNote),
-	skipNote: field(z.string(), d.personality.skipNote),
-	starterNote: field(z.string().min(1), d.personality.starterNote),
-	skipMarker: field(z.string(), d.personality.skipMarker),
-	fallbackReply: field(z.string(), d.personality.fallbackReply),
-	contentFilterReply: field(z.string(), d.personality.contentFilterReply),
-	notHereReply: field(z.string(), d.personality.notHereReply),
-	answeringMarker: field(z.string(), d.personality.answeringMarker),
-	replyLabel: field(z.string(), d.personality.replyLabel),
+	loreInstructions: field(z.string().min(1), d.internals.loreInstructions),
+	judgeInstructions: field(z.string().min(1), d.internals.judgeInstructions),
+	starterNote: field(z.string().min(1), d.internals.starterNote),
+	answeringMarker: field(z.string(), d.internals.answeringMarker),
+	replyLabel: field(z.string(), d.internals.replyLabel),
 });
 
 export const commandsSettings = z.object({
@@ -152,6 +129,7 @@ export const commandsSettings = z.object({
 });
 
 export const musicSettings = z.object({
+	musicChannelIds: field(ids, d.music.musicChannelIds),
 	leaveOnEmpty: field(z.boolean(), d.music.leaveOnEmpty),
 	leaveOnEmptyMs: field(count, d.music.leaveOnEmptyMs),
 	leaveOnEnd: field(z.boolean(), d.music.leaveOnEnd),
@@ -164,12 +142,13 @@ export const musicSettings = z.object({
 });
 
 export const moduleSchemas = {
-	chat: chatSettings,
-	channels: channelsSettings,
-	personality: personalitySettings,
-	character: characterSettings,
-	commands: commandsSettings,
+	identity: identitySettings,
+	style: styleSettings,
+	replies: repliesSettings,
+	memory: memorySettings,
 	music: musicSettings,
+	commands: commandsSettings,
+	internals: internalsSettings,
 } as const;
 
 export type ModuleName = keyof typeof moduleSchemas;

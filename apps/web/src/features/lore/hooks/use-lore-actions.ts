@@ -1,4 +1,3 @@
-import type { LoreKind } from "@klyndre/db/lore";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { toast } from "#/components/ui/toast";
@@ -20,7 +19,7 @@ export const useLoreActions = (guildId: string) => {
 		toast.add({ type: "error", title, description: error.message });
 
 	const create = useMutation({
-		mutationFn: (input: LoreFields & { kind: LoreKind }) =>
+		mutationFn: (input: LoreFields) =>
 			createLore({ data: { guildId, ...input } }),
 		onSuccess: () => {
 			toast.add({ type: "success", title: "Lore added" });
@@ -49,8 +48,7 @@ export const useLoreActions = (guildId: string) => {
 	});
 
 	const removeUnlocked = useMutation({
-		mutationFn: (kind: LoreKind) =>
-			deleteUnlockedLore({ data: { guildId, kind } }),
+		mutationFn: () => deleteUnlockedLore({ data: { guildId } }),
 		onSuccess: (count) => {
 			toast.add({ type: "success", title: `Deleted ${count} entries` });
 			return refresh();

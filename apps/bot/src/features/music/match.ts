@@ -1,14 +1,7 @@
 import type { Track } from "discord-player";
 
-// how close a search result is to what was asked for. Spotify answers every
-// search with something, even a song that only exists on YouTube, so a result
-// has to contain most of the words typed before it's trusted
-
-// share of the typed words a result needs to count as a match: all of them
-// up to four words, so a missing artist name doesn't pass
 const MATCH = 0.8;
 
-// words people add to a search that the song itself doesn't have
 const FILLER = new Set([
 	"official",
 	"audio",
@@ -27,7 +20,6 @@ const FILLER = new Set([
 	"x",
 ]);
 
-// other takes on a song, which only fit when they were asked for
 const VERSIONS = [
 	"live",
 	"cover",
@@ -52,7 +44,6 @@ const VERSIONS = [
 	"10 hours",
 ];
 
-// a music video often has an intro, a skit or an outro around the song
 const MUSIC_VIDEO = /\b(official (music )?video|music video|video ?clip|mv)\b/;
 
 const LETTERS: Record<string, string> = {
@@ -79,7 +70,6 @@ export function normalize(text: string) {
 
 const words = (text: string) => normalize(text).split(" ").filter(Boolean);
 
-// one typo per word, two in long ones, so "weeknd" still finds "weekend"
 function closeTo(word: string, other: string) {
 	const allowed = word.length >= 8 ? 2 : word.length >= 4 ? 1 : 0;
 	if (allowed === 0 || Math.abs(word.length - other.length) > allowed) {
@@ -101,9 +91,6 @@ function closeTo(word: string, other: string) {
 	return (previous[other.length] ?? Infinity) <= allowed;
 }
 
-// share of the wanted words found in the text. A word glued together
-// ("acdc") still finds "ac dc". Numbers have to be exact, since the year is
-// often what sets a song apart ("Victory Road 2018" isn't "Victory Road 2017")
 export function coverage(wanted: string, text: string) {
 	const needed = words(wanted).filter((word) => !FILLER.has(word));
 	if (needed.length === 0) return 1;
@@ -123,7 +110,6 @@ export function coverage(wanted: string, text: string) {
 const has = (text: string, phrase: string) =>
 	` ${normalize(text)} `.includes(` ${phrase} `);
 
-// a live, remix, sped up... take the request didn't ask for
 export function otherVersion(wanted: string, title: string) {
 	return VERSIONS.some(
 		(version) => has(title, version) && !has(wanted, version),
@@ -139,9 +125,6 @@ export function isMusicVideo(wanted: string, title: string) {
 export const isCloseMatch = (query: string, track: Track) =>
 	coverage(query, `${track.author} ${track.title}`) >= MATCH;
 
-// close matches first, then close matches in another version or as a music
-// video, then the rest. Within each, the source's own order (its popularity)
-// is kept
 export function rankResults(query: string, tracks: Track[]) {
 	const tier = (track: Track) => {
 		if (!isCloseMatch(query, track)) return 2;
@@ -155,8 +138,6 @@ export function rankResults(query: string, tracks: Track[]) {
 		.map(({ track }) => track);
 }
 
-// the parts of a Spotify title YouTube uploads leave out: "Song - Remastered
-// 2011", "Song (feat. Someone)"
 function bareTitle(title: string) {
 	return (
 		title
@@ -168,17 +149,12 @@ function bareTitle(title: string) {
 
 const seconds = (ms: number) => Math.round(ms / 1000);
 
-// how well a YouTube video stands in for a Spotify song. The length is the
-// best tell: the same recording is within a few seconds, a music video with an
-// intro or outro runs long
 export function bridgeScore(song: Track, video: Track) {
 	const wanted = `${song.author} ${song.title}`;
 	const artist = song.author.split(",")[0] ?? song.author;
 
 	let score = coverage(bareTitle(song.title), video.title);
 	score += 0.5 * coverage(artist, `${video.author} ${video.title}`);
-	// the artist's own upload over a lyrics channel's, YouTube Music's
-	// "Artist - Topic" audio over both
 	if (coverage(artist, video.author) >= MATCH) score += 0.2;
 	if (video.author.endsWith(" - Topic")) score += 0.2;
 

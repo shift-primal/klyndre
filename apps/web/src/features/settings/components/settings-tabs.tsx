@@ -22,7 +22,6 @@ export const SettingsTabs = ({
 	const [dirty, setDirty] = useState<Partial<Record<ModuleName, boolean>>>({});
 	const anyDirty = Object.values(dirty).some(Boolean);
 
-	// switching tabs only changes the search param, so only leaving the page asks
 	useBlocker({
 		shouldBlockFn: ({ current, next }) => {
 			if (!anyDirty || current.pathname === next.pathname) return false;

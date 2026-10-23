@@ -10,7 +10,7 @@ export const guildSettings = pgTable(
 	"guild_settings",
 	{
 		guildId: text().notNull(),
-		module: text().notNull(), // "chat" | "music" | "core"
+		module: text().notNull(),
 		config: jsonb().notNull().default({}),
 		updatedAt: timestamp().defaultNow().notNull(),
 	},

@@ -3,10 +3,6 @@ import { type PerformanceEntry, PerformanceObserver } from "node:perf_hooks";
 import { getSettings } from "@klyndre/config";
 import type { Player } from "discord-player";
 
-// voice sends a packet every 20ms on this thread; when it freezes, the missed
-// packets go out in a burst afterwards and play back sped up
-
-// how often the clock is checked, the shortest freeze it can measure
 const TICK_MS = 50;
 
 interface Freeze {
@@ -22,7 +18,6 @@ function cause(freeze: Freeze, gcs: PerformanceEntry[]) {
 		.reduce((total, gc) => total + gc.duration, 0);
 	if (gcMs >= freeze.stallMs / 2) return "garbage collection";
 
-	// busy: our own code held the thread. starved: the host gave us no cpu
 	const windowMs = freeze.to - freeze.from;
 	return freeze.cpuMs >= windowMs * 0.7 ? "busy" : "starved of cpu";
 }
@@ -55,9 +50,6 @@ export function registerLagLog(player: Player) {
 	let pending: Freeze | undefined;
 
 	setInterval(() => {
-		// gc entries arrive after the tick that saw the freeze, so it is
-		// reported one tick later. A settings read only fails when the db is
-		// down, which is logged elsewhere
 		if (pending) {
 			const why = cause(pending, gcs);
 			report(player, pending.stallMs, why).catch(() => {});

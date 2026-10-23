@@ -9,13 +9,8 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import "#/env";
 import { fillCharacter } from "#/features/chat/character";
-import { loadLore, selectLore } from "#/features/chat/lore";
-import {
-	firstWord,
-	mayStayQuiet,
-	recentReplies,
-	type Turn,
-} from "#/features/chat/openers";
+import { loadLore, pickStories, selectLore } from "#/features/chat/lore";
+import { firstWord } from "#/features/chat/openers";
 import type { People } from "#/features/chat/profiles";
 import { buildInstructions, type ChatContext } from "#/features/chat/prompt";
 import { type Composed, composeReply } from "#/features/chat/reply";
@@ -33,8 +28,7 @@ const USAGE = `Usage: pnpm test:prompt <scenario file | message> [options]
       --candidates <n>    replies to choose between, instead of the guild's
       --at <time>         what time it is for the bot, like "2026-10-17 23:40"
       --name <name>       the bot's name in the prompt (klyndre)
-      --mention           as if it was tagged, so it never stays quiet
-      --no-lore           leave lore out
+      --no-lore           leave server lore out
       --no-profiles       leave profile notes out
       --count <regex>     how many replies match, can be repeated
       --show-prompt       print the instructions and history first
@@ -42,7 +36,11 @@ const USAGE = `Usage: pnpm test:prompt <scenario file | message> [options]
 
 A scenario file has one "name: text" line per message, oldest first,
 optionally starting with [hh:mm]. Lines from "bot" or --name are the bot's.
-Blank lines and lines starting with # are ignored.`;
+Blank lines and lines starting with # are ignored.
+
+It builds the same prompt the bot would, and makes up the blank parts of the
+character sheet first, but never saves anything else: no story usage, no
+updates to the character sheet, lore or notes.`;
 
 const SERVER = "test server";
 const CHANNEL = "general";
@@ -59,7 +57,6 @@ const { values, positionals } = parseArgs({
 		at: { type: "string" },
 		candidates: { type: "string" },
 		name: { type: "string", default: "klyndre" },
-		mention: { type: "boolean", default: false },
 		lore: { type: "boolean", default: true },
 		profiles: { type: "boolean", default: true },
 		count: { type: "string", multiple: true, default: [] },
@@ -104,7 +101,6 @@ async function loadScenario(arg: string) {
 	return { lines, last };
 }
 
-// the guild's settings when there's only one, defaults when there are none
 async function resolveGuild() {
 	if (values.guild) return values.guild;
 	const rows = await db
@@ -118,7 +114,6 @@ async function resolveGuild() {
 	return rows[0]?.guildId ?? "test";
 }
 
-// the same shape buildHistory gives the live bot
 const toHistory = (lines: Line[]): ModelMessage[] =>
 	lines.map((line) =>
 		line.bot
@@ -126,7 +121,6 @@ const toHistory = (lines: Line[]): ModelMessage[] =>
 			: { role: "user", content: `${line.name}: ${line.text}` },
 	);
 
-// names are matched to profiles; a name without one is its own id, which has no notes
 async function peopleIn(guildId: string, lines: Line[]): Promise<People> {
 	const names = [
 		...new Set(
@@ -177,7 +171,10 @@ if (now && Number.isNaN(now.getTime())) {
 
 const { lines, last } = await loadScenario(positionals[0]);
 const guildId = await resolveGuild();
-const chat = await getSettings(guildId, "chat");
+const [settings, memory] = await Promise.all([
+	getSettings(guildId, "replies"),
+	getSettings(guildId, "memory"),
+]);
 const context: ChatContext = {
 	guildId,
 	botName: values.name,
@@ -193,24 +190,14 @@ const humanText = lines
 	.map((line) => line.text)
 	.join("\n");
 const loreEntries =
-	values.lore && chat.loreEnabled ? await loadLore(guildId) : [];
-const recent = recentReplies(history, chat.openerMemory);
-const turn: Turn = {
-	recent,
-	canSkip:
-		!values.mention && mayStayQuiet(last.text, recent, chat.skipMaxWords),
-};
+	values.lore && memory.loreEnabled ? await loadLore(guildId) : [];
 
-// the live bot makes them up in the background, here every run should have them
 await fillCharacter(guildId, values.name);
 
-// lore is picked again every run, the random fill changes like it would live
-const instructionsFor = () =>
-	buildInstructions(
-		context,
-		people,
-		selectLore(loreEntries, humanText, "test-prompt", chat),
-	);
+const lore = selectLore(loreEntries, humanText, "test-prompt", memory);
+const stories = await pickStories(guildId, humanText);
+
+const instructionsFor = () => buildInstructions(context, people, lore, stories);
 
 if (values["show-prompt"]) {
 	console.log(`=== INSTRUCTIONS ===\n${await instructionsFor()}\n`);
@@ -222,13 +209,14 @@ if (values["show-prompt"]) {
 console.log(
 	[
 		`guild ${guildId}`,
-		`model ${values.model ?? chat.model}`,
-		`temperature ${temperature ?? chat.temperature}`,
-		`best of ${candidates ?? chat.candidates}${chat.judgeCandidates ? " (judged)" : ""}`,
-		now && `at ${now.toLocaleString("en-GB", { timeZone: chat.timeZone })}`,
+		`model ${values.model ?? settings.model}`,
+		`temperature ${temperature ?? settings.temperature}`,
+		`best of ${candidates ?? settings.candidates}`,
+		now && `at ${now.toLocaleString("en-GB", { timeZone: settings.timeZone })}`,
 		`lore ${loreEntries.length > 0 ? `${loreEntries.length} ${loreEntries.length === 1 ? "entry" : "entries"}` : "off"}`,
-		`profiles ${values.profiles && chat.profilesEnabled ? "on" : "off"}`,
-		turn.canSkip && "may stay quiet",
+		stories.length > 0 &&
+			`${stories.length} ${stories.length === 1 ? "story" : "stories"} matched`,
+		`profiles ${values.profiles && memory.profilesEnabled ? "on" : "off"}`,
 	]
 		.filter(Boolean)
 		.join(", "),
@@ -244,7 +232,6 @@ const results = await pool(runs, concurrency, async (): Promise<Result> => {
 		context,
 		await instructionsFor(),
 		history,
-		turn,
 		{
 			model: values.model,
 			temperature,
@@ -255,13 +242,10 @@ const results = await pool(runs, concurrency, async (): Promise<Result> => {
 	if (!values.quiet) {
 		const tags = [
 			composed.outcome !== "reply" && composed.outcome,
-			composed.retried && "retried",
 			composed.candidates > 1 && `of ${composed.candidates}`,
 			composed.finishReason === "length" && "token cap",
 		].filter(Boolean);
-		// each line is its own message in discord
-		const text =
-			composed.outcome === "quiet" ? "" : composed.text.replaceAll("\n", " / ");
+		const text = composed.text.replaceAll("\n", " / ");
 		console.log(
 			`${String(number).padStart(4)}  ${text}${tags.length ? `  [${tags.join(", ")}]` : ""}`,
 		);
@@ -272,7 +256,7 @@ const results = await pool(runs, concurrency, async (): Promise<Result> => {
 const replies = results.filter((result) => result.outcome === "reply");
 const n = replies.length;
 const of = (count: number) => `${count}/${n}`;
-const outcomes = (["quiet", "fallback", "filtered"] as const)
+const outcomes = (["fallback", "filtered"] as const)
 	.map((outcome) => [
 		outcome,
 		results.filter((result) => result.outcome === outcome).length,
@@ -294,9 +278,6 @@ console.log(
 
 const multi = replies.filter((result) => result.text.includes("\n")).length;
 if (multi) console.log(`sent as several messages: ${of(multi)}`);
-
-const retried = results.filter((result) => result.retried).length;
-if (retried) console.log(`opener retries: ${retried}/${runs}`);
 
 const runaways = replies.filter(
 	(result) => result.finishReason === "length" || isLoop(result.text),

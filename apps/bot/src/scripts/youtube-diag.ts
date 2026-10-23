@@ -14,11 +14,6 @@ import {
 	proxiedFetch,
 } from "#/features/music/extractors/youtube";
 
-// shows, on the machine it runs on, which YouTube clients adaptive can stream
-// from (and through the home proxy, when YOUTUBE_PROXY is set) and where
-// yt-dlp spends its time, with and without the cookies. Usage:
-// pnpm youtube:diag [cookies.txt], the cookies from the database otherwise
-
 const VIDEO = "X9CsK_nuqdE";
 const CLIENTS: Types.InnerTubeClient[] = [
 	"VISIONOS",

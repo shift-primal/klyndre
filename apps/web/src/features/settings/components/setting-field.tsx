@@ -14,6 +14,7 @@ import { isPromptKind } from "#/features/prompts/lib/prompt-kinds";
 import { ChannelPicker } from "#/features/settings/components/channel-picker";
 import { ListField } from "#/features/settings/components/list-field";
 import { RolePicker } from "#/features/settings/components/role-picker";
+import { SelectField } from "#/features/settings/components/select-field";
 import { type FieldSpec, sameValue } from "#/features/settings/lib/fields";
 
 type Props = {
@@ -109,6 +110,20 @@ const Control = ({
 						onChange(next);
 						onBlur();
 					}}
+					disabled={disabled}
+				/>
+			);
+		case "select":
+			return (
+				<SelectField
+					id={id}
+					value={String(value ?? "")}
+					options={spec.options ?? []}
+					onChange={(next) => {
+						onChange(next);
+						onBlur();
+					}}
+					invalid={invalid}
 					disabled={disabled}
 				/>
 			);

@@ -2,18 +2,13 @@ import { getSettings } from "@klyndre/config";
 import { generateText, type ModelMessage } from "ai";
 
 import { chatModel } from "#/features/chat/model";
-import { firstWord } from "#/features/chat/openers";
+import { firstWord, openerHabit } from "#/features/chat/openers";
 import { textOf, transcriptOf } from "#/features/chat/transcript";
 import { words } from "#/lib/utils/text";
 
-// picking which of a few candidate replies to send, so it doesn't keep saying the same things
-
-// the judge only sees the end of the chat, that's where repetition shows
 const JUDGE_CONTEXT = 12;
-// how much more repetitive than the best one a candidate can be and still go to the judge
 const SHORTLIST_MARGIN = 2;
 
-// a run of words straight after the same run, like "ok bro ok bro"
 export function isLoop(text: string) {
 	const w = text.split(/\s+/);
 	for (let size = 2; size * 2 <= w.length; size++) {
@@ -44,15 +39,11 @@ const phrases = (text: string, size: number) => {
 export type Candidate = { text: string; hitCap: boolean };
 
 type Context = {
-	// its own last replies, oldest first
 	recent: string[];
-	// the word its recent replies keep opening with, if any
 	habit: string | null;
-	// what people said, so echoing them doesn't count as repeating itself
 	said: Set<string>;
 };
 
-// higher means more of the same: its usual opener, its own phrases and words again, loops
 export function repetitionOf({ text, hitCap }: Candidate, context: Context) {
 	let score = 0;
 	const opener = firstWord(text);
@@ -83,8 +74,8 @@ async function judge(
 	candidates: Candidate[],
 ) {
 	const [{ model }, { judgeInstructions }] = await Promise.all([
-		getSettings(guildId, "chat"),
-		getSettings(guildId, "personality"),
+		getSettings(guildId, "replies"),
+		getSettings(guildId, "internals"),
 	]);
 	const chat = transcriptOf(history.slice(-JUDGE_CONTEXT), botName);
 	const own = recent.map((reply) => `- ${reply.replaceAll("\n", " / ")}`);
@@ -92,7 +83,6 @@ async function judge(
 		({ text }, i) => `${i + 1}. ${text.replaceAll("\n", " / ")}`,
 	);
 
-	// a bare number is quicker than structured output, and all it needs to say
 	const { text } = await generateText({
 		model: chatModel(model),
 		instructions: judgeInstructions.replaceAll("{name}", botName),
@@ -116,16 +106,15 @@ async function judge(
 	return index >= 0 && index < candidates.length ? index : null;
 }
 
-// the index of the candidate to send
 export async function pickReply(
 	{ guildId, botName }: { guildId: string; botName: string },
 	history: ModelMessage[],
 	recent: string[],
-	habit: string | null,
 	candidates: Candidate[],
 ) {
 	if (candidates.length < 2) return 0;
 
+	const habit = openerHabit(recent);
 	const said = words(
 		history
 			.filter((msg) => msg.role === "user")
@@ -137,10 +126,6 @@ export async function pickReply(
 	);
 	const leastRepetitive = scores.indexOf(Math.min(...scores));
 
-	const { judgeCandidates } = await getSettings(guildId, "chat");
-	if (!judgeCandidates) return leastRepetitive;
-
-	// the judge only chooses between the ones that don't clearly repeat themselves
 	const best = scores[leastRepetitive] ?? 0;
 	const shortlist = candidates
 		.map((candidate, index) => ({ candidate, index }))

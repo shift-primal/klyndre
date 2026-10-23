@@ -4,7 +4,6 @@ import { z } from "zod";
 
 import { adminMiddleware } from "#/features/auth/server/auth-middleware";
 
-// only says whether the cookies exist, the value never leaves the server
 export const getYoutubeCookieInfo = createServerFn({ method: "GET" })
 	.middleware([adminMiddleware])
 	.handler(() => getSecretInfo("youtube-cookies"));

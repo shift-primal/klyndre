@@ -17,7 +17,6 @@ import type { PromptKind } from "#/features/prompts/lib/prompt-kinds";
 type Props = {
 	kind: PromptKind;
 	text: string;
-	// built-in preset, listed first, can't be deleted or overwritten
 	defaultText: string;
 	onLoad: (text: string) => void;
 };

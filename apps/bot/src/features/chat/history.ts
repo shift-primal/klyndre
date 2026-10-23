@@ -4,7 +4,6 @@ import { type Message, MessageReferenceType } from "discord.js";
 
 import type { People } from "#/features/chat/profiles";
 
-// the reset command replies with this, and history stops reading at it
 export const RESET_MARKER = "🧹 Chat history cleared.";
 
 // chat messages that don't reply to anything (the extra lines of a reply, a
@@ -35,7 +34,6 @@ const imagesOf = (msg: Message<true>): FilePart[] =>
 			}),
 		);
 
-// who a discord reply is aimed at, without it "du" is guesswork for the model
 const replyingTo = (
 	msg: Message<true>,
 	byId: ReadonlyMap<string, Message<true>>,
@@ -77,7 +75,6 @@ const belongsInChat = (
 	return answered !== undefined && !answered.content.startsWith(prefix);
 };
 
-// messages already fetched are looked up there first, each fetch is a round trip to discord
 const replyChain = async (
 	message: Message<true>,
 	limit: number,
@@ -102,7 +99,6 @@ export const buildHistory = async (
 	messages: ModelMessage[];
 	people: People;
 	humanText: string;
-	// people's messages sent after this one that it read
 	later: string[];
 }> => {
 	const [
@@ -110,15 +106,14 @@ export const buildHistory = async (
 		{ prefix },
 		{ answeringMarker, replyLabel },
 	] = await Promise.all([
-		getSettings(message.guildId, "chat"),
+		getSettings(message.guildId, "replies"),
 		getSettings(message.guildId, "commands"),
-		getSettings(message.guildId, "personality"),
+		getSettings(message.guildId, "internals"),
 	]);
 
 	const { messages: channelMessages } = message.channel;
 	const [before, after] = await Promise.all([
 		channelMessages.fetch({ limit: historyLimit, before: message.id }),
-		// anything sent while this reply waited its turn
 		laterLimit > 0
 			? channelMessages.fetch({ limit: laterLimit, after: message.id })
 			: null,
@@ -131,7 +126,6 @@ export const buildHistory = async (
 	const recent = reset === -1 ? earlier : earlier.slice(0, reset);
 	const resetAt = earlier[reset]?.createdTimestamp ?? 0;
 
-	// the start of the conversation it's in, when that's older than the history
 	const recentIds = new Set(recent.map((msg) => msg.id));
 	const thread = chain.filter(
 		(msg) => msg.createdTimestamp > resetAt && !recentIds.has(msg.id),
@@ -149,7 +143,6 @@ export const buildHistory = async (
 	for (const msg of all) {
 		if (!belongsInChat(msg, byId, botId, prefix)) continue;
 
-		// old discord attachment urls expire, and old images rarely matter anyway
 		const fresh =
 			message.createdTimestamp - msg.createdTimestamp <= imageMaxAgeMs;
 		const images =
@@ -163,7 +156,6 @@ export const buildHistory = async (
 		kept.push({ msg, images });
 	}
 
-	// newer messages came in while it waited, so say which one it's answering
 	const piledUp = kept[0]?.msg !== message;
 	const speakerOf = (msg: Message<true>) => {
 		const target = replyLabel && replyingTo(msg, byId, botId);
@@ -171,7 +163,6 @@ export const buildHistory = async (
 			? `${nameOf(msg)} ${replyLabel.replaceAll("{name}", target)}`
 			: nameOf(msg);
 	};
-	// a reply sent as several messages goes back together, one line each
 	const messages: ModelMessage[] = [];
 	for (const { msg, images } of [...kept].reverse()) {
 		const previous = messages.at(-1);
@@ -195,7 +186,6 @@ export const buildHistory = async (
 		);
 	}
 
-	// what people said, without name prefixes, so a chatter's own name doesn't count
 	const human = kept.filter(({ msg }) => !msg.author.bot);
 	const humanText = human.map(({ msg }) => msg.cleanContent).join("\n");
 	const later = human
