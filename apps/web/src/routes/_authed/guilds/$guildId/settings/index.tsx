@@ -26,7 +26,7 @@ export const Route = createFileRoute("/_authed/guilds/$guildId/settings/")({
 
 function SettingsPage() {
 	const { guildId } = Route.useParams();
-	const { tab = "chat" } = Route.useSearch();
+	const { tab = "identity" } = Route.useSearch();
 	const { session } = Route.useRouteContext();
 	const navigate = Route.useNavigate();
 

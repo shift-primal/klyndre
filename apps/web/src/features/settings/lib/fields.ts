@@ -7,6 +7,7 @@ export type FieldKind =
 	| "textarea"
 	| "prompt"
 	| "list"
+	| "select"
 	| "channels"
 	| "role";
 
@@ -18,6 +19,7 @@ export type FieldSpec = {
 	min?: number;
 	max?: number;
 	integer?: boolean;
+	options?: string[];
 	advanced: boolean;
 };
 
@@ -30,6 +32,7 @@ type Node = {
 	minValue?: number | null;
 	maxValue?: number | null;
 	isInt?: boolean;
+	options?: string[];
 };
 
 const ACRONYMS: Record<string, string> = { ai: "AI" };
@@ -59,6 +62,7 @@ const kindOf = (widget: string | undefined, inner: Node): FieldKind => {
 	if (widget === "list") return "list";
 	if (widget === "textChannel") return "channels";
 	if (widget === "role") return "role";
+	if (inner.def.type === "enum") return "select";
 	if (inner.def.type === "boolean") return "switch";
 	if (inner.def.type === "number") return "number";
 	return "text";
@@ -80,6 +84,7 @@ export const fieldsFor = (module: ModuleName): FieldSpec[] =>
 			min: bound(inner.minValue),
 			max: bound(inner.maxValue),
 			integer: inner.isInt,
+			options: inner.options,
 			advanced: meta?.advanced ?? false,
 		};
 	});

@@ -4,6 +4,7 @@
 	"type": "module",
 	"exports": {
 		".": "./src/index.ts",
+		"./character": "./src/character.ts",
 		"./env": "./src/env.ts",
 		"./lore": "./src/lore.ts"
 	},

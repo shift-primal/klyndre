@@ -11,20 +11,18 @@ import type {
 import { CHAT_MARK } from "#/features/chat/history";
 
 import { chatModel } from "#/features/chat/model";
-import {
-	firstWord,
-	isSkip,
-	openerHabit,
-	type Turn,
-} from "#/features/chat/openers";
+import { recentReplies } from "#/features/chat/openers";
 import { type ChatContext, chatContext } from "#/features/chat/prompt";
 import { pickReply } from "#/features/chat/variety";
 import { chunk } from "#/lib/utils/text";
 
 const DISCORD_MAX_LENGTH = 2000;
-// per message after the first, however long it is
 const FOLLOW_UP_TYPING_MIN_MS = 400;
 const FOLLOW_UP_TYPING_MAX_MS = 2_000;
+
+const ONE_LINE_NOTE = "write just one line this time.";
+const severalLinesNote = (lines: number) =>
+	`you may write up to ${lines} short lines this time; each line is sent as its own message.`;
 
 const allowedMentions: MessageMentionOptions = {
 	parse: [],
@@ -40,14 +38,11 @@ const cleanReply = (botName: string, text: string) => {
 		: reply;
 };
 
-// unicode emojis (with their joiners and variation selectors) and discord custom emojis
 const EMOJI =
 	/<a?:\w+:\d+>|\p{Extended_Pictographic}|\p{Emoji_Modifier}|\u200d|\ufe0f|\u20e3/gu;
 
-// one line per message, so the reply comes back joined with newlines.
-// with one message allowed, its lines are joined into it instead of dropped
 async function styleReply(guildId: string, text: string, maxMessages: number) {
-	const { lowercaseReplies, stripEmojis } = await getSettings(guildId, "chat");
+	const { lowercaseReplies, stripEmojis } = await getSettings(guildId, "style");
 	const style = (line: string) => {
 		let styled = line;
 		if (stripEmojis) styled = styled.replace(EMOJI, "");
@@ -75,7 +70,6 @@ export const withoutImages = (history: ModelMessage[]): ModelMessage[] =>
 			: msg,
 	);
 
-// overrides for trying things out, the live bot uses the guild settings as they are
 type GenerateOptions = { model?: string; temperature?: number };
 
 async function generate(
@@ -86,7 +80,7 @@ async function generate(
 ) {
 	const { model, temperature, maxReplyTokens } = await getSettings(
 		guildId,
-		"chat",
+		"replies",
 	);
 	const run = (messages: ModelMessage[]) =>
 		generateText({
@@ -100,14 +94,12 @@ async function generate(
 	try {
 		return await run(history);
 	} catch (error) {
-		// usually an expired or unsupported image url, the text alone still works
 		if (!hasImages(history)) throw error;
 		console.warn("[chat] reply with images failed, retrying without", error);
 		return run(withoutImages(history));
 	}
 }
 
-// notes go after the last message, where the model actually acts on them
 const withNote = (history: ModelMessage[], note: string): ModelMessage[] => {
 	if (!note) return history;
 	const text = `(note to you: ${note})`;
@@ -123,17 +115,12 @@ const withNote = (history: ModelMessage[], note: string): ModelMessage[] => {
 };
 
 export type Composed = {
-	// what gets sent, empty when it stays quiet
 	text: string;
-	outcome: "reply" | "quiet" | "fallback" | "filtered";
-	// of the generation it came from, "length" means it hit the token cap
+	outcome: "reply" | "fallback" | "filtered";
 	finishReason?: FinishReason;
-	retried: boolean;
-	// replies it chose between
 	candidates: number;
 };
 
-// overrides for trying things out, like GenerateOptions
 type ComposeOptions = GenerateOptions & { candidates?: number };
 
 type Draft = { text: string; finishReason: FinishReason };
@@ -142,39 +129,26 @@ export async function composeReply(
 	context: Pick<ChatContext, "guildId" | "botName">,
 	instructions: string,
 	history: ModelMessage[],
-	turn: Turn,
 	options: ComposeOptions = {},
 ): Promise<Composed> {
 	const { guildId, botName } = context;
-	const [
-		{
-			fallbackReply,
-			contentFilterReply,
-			skipMarker,
-			skipNote,
-			repeatedOpenerNote,
-			oneLineNote,
-		},
-		chat,
-	] = await Promise.all([
-		getSettings(guildId, "personality"),
-		getSettings(guildId, "chat"),
-	]);
-	const habit = openerHabit(turn.recent, chat.openerRepeatLimit);
-	// rolled per reply, the model writes several lines far more often than asked to
+	const [{ fallbackReply, contentFilterReply, candidates }, style] =
+		await Promise.all([
+			getSettings(guildId, "replies"),
+			getSettings(guildId, "style"),
+		]);
 	const maxMessages =
-		Math.random() < chat.multiMessageChance ? chat.maxMessages : 1;
-	const note = [
-		maxMessages === 1 && chat.maxMessages > 1 && oneLineNote,
-		habit && repeatedOpenerNote.replaceAll("{word}", habit),
-		turn.canSkip && skipMarker && skipNote.replaceAll("{marker}", skipMarker),
-	]
-		.filter(Boolean)
-		.join(" ");
-	const none = { retried: false, candidates: 0 };
-	const fallback = { text: fallbackReply, outcome: "fallback" } as const;
+		style.maxMessages > 1 && Math.random() < style.multiMessageChance
+			? style.maxMessages
+			: 1;
+	const note =
+		maxMessages === 1 ? ONE_LINE_NOTE : severalLinesNote(maxMessages);
+	const fallback = {
+		text: fallbackReply,
+		outcome: "fallback",
+		candidates: 0,
+	} as const;
 
-	// text is null when the content filter stopped it
 	const attempt = async () => {
 		const { text, finishReason } = await generate(
 			guildId,
@@ -190,8 +164,7 @@ export async function composeReply(
 	};
 
 	try {
-		// several at once take as long as one, and give it something to choose from
-		const count = options.candidates ?? chat.candidates;
+		const count = options.candidates ?? candidates;
 		const settled = await Promise.allSettled(
 			Array.from({ length: count }, attempt),
 		);
@@ -203,53 +176,23 @@ export async function composeReply(
 
 		const allowed = done.filter((draft): draft is Draft => draft.text !== null);
 		if (allowed.length === 0) {
-			return { text: contentFilterReply, outcome: "filtered", ...none };
-		}
-		const skips = allowed.filter((draft) => isSkip(draft.text, skipMarker));
-		const drafts = allowed.filter(
-			(draft) => draft.text && !isSkip(draft.text, skipMarker),
-		);
-
-		// staying quiet when most of them would
-		if (turn.canSkip && skips.length > 0 && skips.length >= drafts.length) {
-			return {
-				text: "",
-				outcome: "quiet",
-				...none,
-				candidates: allowed.length,
-			};
+			return { text: contentFilterReply, outcome: "filtered", candidates: 0 };
 		}
 
-		// when every one opens the usual way, one more try might not
-		const retried =
-			habit !== null &&
-			drafts.length > 0 &&
-			drafts.every((draft) => firstWord(draft.text) === habit);
-		if (retried) {
-			const retry = await attempt().catch(() => null);
-			if (retry?.text && !isSkip(retry.text, skipMarker)) {
-				drafts.push(retry as Draft);
-			}
-		}
-		if (drafts.length === 0) return { ...fallback, ...none, retried };
-
-		// an emoji-only reply styles down to nothing, which means stay quiet
 		const styled = (
 			await Promise.all(
-				drafts.map(async (draft) => ({
+				allowed.map(async (draft) => ({
 					text: await styleReply(guildId, draft.text, maxMessages),
 					finishReason: draft.finishReason,
 				})),
 			)
 		).filter((draft) => draft.text);
-		const tried = { retried, candidates: styled.length };
-		if (styled.length === 0) return { text: "", outcome: "quiet", ...tried };
+		if (styled.length === 0) return fallback;
 
 		const index = await pickReply(
 			context,
 			history,
-			turn.recent,
-			habit,
+			recentReplies(history),
 			styled.map(({ text, finishReason }) => ({
 				text,
 				hitCap: finishReason === "length",
@@ -260,25 +203,22 @@ export async function composeReply(
 			text: chosen?.text ?? "",
 			outcome: "reply",
 			finishReason: chosen?.finishReason,
-			...tried,
+			candidates: styled.length,
 		};
 	} catch (error) {
 		console.error("[chat]", error);
-		return { ...fallback, ...none };
+		return fallback;
 	}
 }
 
-// one message per line, the first answering replyTo when there is one,
-// the rest like someone typing a few messages in a row
 export async function deliver(
 	channel: GuildTextBasedChannel,
 	text: string,
 	replyTo?: Message<true>,
 ) {
-	const { followUpTypingMs } = await getSettings(channel.guildId, "chat");
+	const { followUpTypingMs } = await getSettings(channel.guildId, "style");
 	const send = (content: string) =>
 		channel.send({ content: `${content}${CHAT_MARK}`, allowedMentions });
-	// room for the mark on every part
 	const size = DISCORD_MAX_LENGTH - CHAT_MARK.length;
 
 	const [first = "", ...rest] = text.split("\n");
@@ -305,37 +245,20 @@ export async function sendReply(
 	message: Message<true>,
 	instructions: string,
 	history: ModelMessage[],
-	turn: Turn,
-): Promise<string | null> {
-	// when it may stay quiet, typing first would give away a reply that never comes,
-	// so it only types once it knows it's answering
+): Promise<Composed | null> {
 	const showTyping = () => message.channel.sendTyping().catch(() => {});
-	const typing = turn.canSkip ? undefined : setInterval(showTyping, 8_000);
-	if (!turn.canSkip) await showTyping();
+	const typing = setInterval(showTyping, 8_000);
 
 	try {
-		const {
-			text: reply,
-			outcome,
-			retried,
-		} = await composeReply(chatContext(message), instructions, history, turn);
-		if (retried)
-			console.log("[chat] retried, every reply opened the usual way");
-		if (outcome === "quiet") {
-			console.log(`[chat] stayed quiet after "${message.cleanContent}"`);
-		}
-		if (!reply) return null;
+		const composed = await composeReply(
+			chatContext(message),
+			instructions,
+			history,
+		);
+		if (!composed.text) return null;
 
-		if (turn.canSkip) {
-			const { quietTypingMs } = await getSettings(message.guildId, "chat");
-			if (quietTypingMs > 0) {
-				await showTyping();
-				await sleep(quietTypingMs);
-			}
-		}
-
-		await deliver(message.channel, reply, message);
-		return reply;
+		await deliver(message.channel, composed.text, message);
+		return composed;
 	} finally {
 		clearInterval(typing);
 	}

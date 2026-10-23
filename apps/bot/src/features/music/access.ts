@@ -104,7 +104,7 @@ export async function requireVoiceChannel(
 export const withMusicChannel = (command: Command): Command => ({
 	...command,
 	async run(ctx) {
-		const { musicChannelIds } = await getSettings(ctx.guild.id, "channels");
+		const { musicChannelIds } = await getSettings(ctx.guild.id, "music");
 		const here = ctx.channel?.id;
 
 		if (

@@ -4,7 +4,7 @@ export const promptPresets = pgTable(
 	"prompt_presets",
 	{
 		id: serial().primaryKey(),
-		kind: text().notNull(), // a personality setting key, like "persona"
+		kind: text().notNull(),
 		name: text().notNull(),
 		content: text().notNull(),
 		createdAt: timestamp().defaultNow().notNull(),

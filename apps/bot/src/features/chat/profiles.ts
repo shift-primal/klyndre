@@ -35,7 +35,6 @@ export async function clearNotes(guildId: string, userId: string) {
 	return removed.length > 0;
 }
 
-// who a fact is about; only the first two belong in that person's notes
 const subjects = [
 	"themselves",
 	"their own family or friends",
@@ -74,17 +73,17 @@ const updateSchema = z.object({
 });
 type Update = z.infer<typeof updateSchema>["people"][number];
 
-// the notes that should change, without saving them, so scripts can try it too
 export async function draftNotes(
 	guildId: string,
 	botName: string,
 	people: People,
 	history: ModelMessage[],
 ) {
-	const [{ model, profileEvidenceWords }, { profileInstructions }, notes] =
+	const [{ model }, { profileEvidenceWords }, { profileInstructions }, notes] =
 		await Promise.all([
-			getSettings(guildId, "chat"),
-			getSettings(guildId, "personality"),
+			getSettings(guildId, "replies"),
+			getSettings(guildId, "memory"),
+			getSettings(guildId, "internals"),
 			loadNotes(guildId, people),
 		]);
 	const current = [...people]
@@ -105,7 +104,6 @@ export async function draftNotes(
 		output: Output.object({ schema: updateSchema }),
 	});
 
-	// a note only changes when one of its new facts is that person's own words about themselves
 	const backedUp = ({ userId, facts }: Update, name: string) => {
 		const lines = linesBy(history, name);
 		const kept = facts.filter(
@@ -141,7 +139,7 @@ export async function maybeUpdateNotes(
 	const { channelId, guildId } = message;
 	const { profilesEnabled, profileUpdateEvery } = await getSettings(
 		guildId,
-		"chat",
+		"memory",
 	);
 	if (!profilesEnabled) return;
 

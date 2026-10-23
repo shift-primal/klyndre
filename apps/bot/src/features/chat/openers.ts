@@ -1,47 +1,25 @@
 import type { ModelMessage } from "ai";
 
-export type Turn = {
-	// its own last replies in this channel, oldest first
-	recent: string[];
-	// tagged replies always answer, anything else may stay quiet
-	canSkip: boolean;
-};
+export const OPENER_MEMORY = 5;
+export const OPENER_HABIT_LIMIT = 2;
 
 export const firstWord = (text: string) =>
 	text.toLowerCase().match(/[\p{L}\p{N}]+/u)?.[0] ?? "";
 
-export const recentReplies = (history: ModelMessage[], count: number) =>
-	count === 0
-		? []
-		: history
-				.flatMap((msg) =>
-					msg.role === "assistant" && typeof msg.content === "string"
-						? [msg.content]
-						: [],
-				)
-				.slice(-count);
+export const recentReplies = (history: ModelMessage[]) =>
+	history
+		.flatMap((msg) =>
+			msg.role === "assistant" && typeof msg.content === "string"
+				? [msg.content]
+				: [],
+		)
+		.slice(-OPENER_MEMORY);
 
-export const openerHabit = (recent: string[], limit: number) => {
-	if (limit === 0) return null;
+export const openerHabit = (recent: string[]) => {
 	const counts = new Map<string, number>();
 	for (const word of recent.map(firstWord).filter(Boolean)) {
 		counts.set(word, (counts.get(word) ?? 0) + 1);
 	}
 	const [word, times] = [...counts].sort((a, b) => b[1] - a[1])[0] ?? [];
-	return word && times && times >= limit ? word : null;
+	return word && times && times >= OPENER_HABIT_LIMIT ? word : null;
 };
-
-// short enough that it might not need an answer, like "ok" or "will do"
-export const isShort = (text: string, maxWords: number) =>
-	maxWords > 0 && (text.match(/[\p{L}\p{N}]+/gu) ?? []).length <= maxWords;
-
-// only after a short message, and never when it just asked something
-export const mayStayQuiet = (
-	text: string,
-	recent: string[],
-	maxWords: number,
-) => isShort(text, maxWords) && !recent.at(-1)?.trim().endsWith("?");
-
-// the model sometimes wraps the marker in other text, so it only has to appear
-export const isSkip = (reply: string, marker: string) =>
-	marker !== "" && reply.toLowerCase().includes(marker.toLowerCase());

@@ -1,20 +1,23 @@
 import { getSettings } from "@klyndre/config";
 import type { Message } from "discord.js";
 
-import { buildHistory } from "#/features/chat/history";
-import { maybeUpdateLore, noteUsage, pickLore } from "#/features/chat/lore";
 import {
-	isShort,
-	mayStayQuiet,
-	recentReplies,
-	type Turn,
-} from "#/features/chat/openers";
+	maybeFillCharacter,
+	maybeUpdateCharacter,
+} from "#/features/chat/character";
+import { buildHistory } from "#/features/chat/history";
+import {
+	maybeUpdateLore,
+	noteStoriesUsed,
+	noteUsage,
+	pickLore,
+	pickStories,
+} from "#/features/chat/lore";
 import { maybeUpdateNotes } from "#/features/chat/profiles";
 import { buildInstructions, chatContext } from "#/features/chat/prompt";
 import { sendReply } from "#/features/chat/reply";
 import { inTurn } from "#/features/chat/turns";
 
-// notHere: tagged in a channel it never talks in, with replies to tags anywhere off
 type ReplyReason = "mention" | "aiChannel" | "random" | "notHere";
 
 // typing @bot often picks the bot's own role (same name) from the suggestions,
@@ -37,30 +40,23 @@ async function replyReason(
 	const { prefix } = await getSettings(message.guildId, "commands");
 	if (message.content.startsWith(prefix)) return null;
 
-	const channels = await getSettings(message.guildId, "channels");
-	const inAiChannel = channels.aiChannelIds.includes(message.channelId);
+	const replies = await getSettings(message.guildId, "replies");
+	const inAiChannel = replies.aiChannelIds.includes(message.channelId);
 
 	const tagged = isTagged(message);
-	if (tagged) {
-		const { replyToMentionsAnywhere } = await getSettings(
-			message.guildId,
-			"chat",
-		);
-		if (replyToMentionsAnywhere || inAiChannel) return "mention";
+	if (tagged && (replies.replyToMentionsAnywhere || inAiChannel)) {
+		return "mention";
 	}
 
 	if (inAiChannel) return "aiChannel";
 
-	if (channels.randomReplyChannelIds.includes(message.channelId)) {
-		const { randomReplyChance } = await getSettings(message.guildId, "chat");
-		return Math.random() < randomReplyChance ? "random" : null;
+	if (replies.randomReplyChannelIds.includes(message.channelId)) {
+		return Math.random() < replies.randomReplyChance ? "random" : null;
 	}
 
 	return tagged ? "notHere" : null;
 }
 
-// per channel, what its last reply read that came in after the message it answered.
-// answering those again just repeats that reply, so only a tag gets another one
 const alreadyRead = new Map<string, Set<string>>();
 
 const seconds = (from: number, to: number) =>
@@ -74,15 +70,12 @@ export const handleMessage = async (message: Message) => {
 	if (!reason) return;
 
 	if (reason === "notHere") {
-		const { notHereReply } = await getSettings(message.guildId, "personality");
+		const { notHereReply } = await getSettings(message.guildId, "replies");
 		if (notHereReply) await message.reply(notHereReply);
 		return;
 	}
 
-	const { turnWaitLimitMs, skipMaxWords } = await getSettings(
-		message.guildId,
-		"chat",
-	);
+	const { turnWaitLimitMs } = await getSettings(message.guildId, "replies");
 	await inTurn(message.channelId, turnWaitLimitMs, async () => {
 		const started = performance.now();
 		if (
@@ -95,31 +88,25 @@ export const handleMessage = async (message: Message) => {
 			return;
 		}
 
-		// when it's going to answer anyway, it types while it reads the chat and
-		// writes, like someone who saw the message and started typing
-		if (reason === "mention" || !isShort(message.cleanContent, skipMaxWords)) {
-			void message.channel.sendTyping().catch(() => {});
-		}
+		void message.channel.sendTyping().catch(() => {});
 
+		const context = chatContext(message);
+		void maybeFillCharacter(context);
 		const { messages, people, humanText, later } = await buildHistory(message);
 		const read = performance.now();
-		const lore = await pickLore(message, humanText);
-		const { openerMemory } = await getSettings(message.guildId, "chat");
-		const recent = recentReplies(messages, openerMemory);
-		const turn: Turn = {
-			recent,
-			canSkip:
-				reason !== "mention" &&
-				mayStayQuiet(message.cleanContent, recent, skipMaxWords),
-		};
+		const [lore, stories] = await Promise.all([
+			pickLore(message, humanText),
+			pickStories(message.guildId, humanText),
+		]);
 		const instructions = await buildInstructions(
-			chatContext(message),
+			context,
 			people,
 			lore,
+			stories,
 		);
 		const prompted = performance.now();
-		const reply = await sendReply(message, instructions, messages, turn);
-		if (reply) {
+		const sent = await sendReply(message, instructions, messages);
+		if (sent) {
 			const now = performance.now();
 			console.log(
 				`[chat] answered in ${seconds(received, now)}: waiting ${seconds(received, started)}, reading the chat ${seconds(started, read)}, prompt ${seconds(read, prompted)}, writing and sending ${seconds(prompted, now)}`,
@@ -127,10 +114,15 @@ export const handleMessage = async (message: Message) => {
 		}
 
 		void maybeUpdateNotes(message, people, messages);
-		if (!reply) return;
+		if (!sent) return;
 
 		alreadyRead.set(message.channelId, new Set(later));
-		await noteUsage(message, lore.unprompted, reply);
-		void maybeUpdateLore(message, messages, reply);
+		await noteUsage(message, lore.unprompted, sent.text);
+		void maybeUpdateLore(message, messages, sent.text);
+		if (sent.outcome !== "reply") return;
+		await noteStoriesUsed(stories).catch((error) =>
+			console.error("[chat]", error),
+		);
+		void maybeUpdateCharacter(context, messages, sent.text);
 	});
 };
