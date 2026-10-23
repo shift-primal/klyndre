@@ -67,7 +67,6 @@ function innertube(ext: YoutubeExtractor) {
 	return ext.innertube;
 }
 
-// yt-dlp prints why it failed (bot check, region block, age gate) to stderr
 function ytdlpError(stderr: string) {
 	const lines = stderr
 		.split("\n")
@@ -117,9 +116,6 @@ export function proxiedFetch(proxy: string): typeof fetch {
 	return (input, init) => fetch(input, { ...init, dispatcher } as RequestInit);
 }
 
-// adaptive streams through a YouTube session of its own, made at startup so the
-// first song doesn't wait for it. A failed stream drops the session, so the
-// next song starts on a fresh one
 function adaptive(cookie: string | undefined, proxy?: string): Opener {
 	const through = proxy ? proxiedFetch(proxy) : undefined;
 	let session: Promise<Innertube> | undefined;
@@ -148,7 +144,6 @@ function adaptive(cookie: string | undefined, proxy?: string): Opener {
 	};
 }
 
-// when every method fails, ask YouTube directly why it won't serve the video
 async function playability(ext: YoutubeExtractor, videoId: string) {
 	try {
 		const info = await innertube(ext).getBasicInfo(videoId);
@@ -160,9 +155,6 @@ async function playability(ext: YoutubeExtractor, videoId: string) {
 	}
 }
 
-// a method that keeps failing (adaptive behind a bot check) would make every
-// song wait for it to give up, so after a couple of failures in a row it moves
-// to the back for a while, then gets tried first again
 const FAILS_BEFORE_REST = 2;
 const REST_MS = 30 * 60_000;
 
@@ -184,8 +176,6 @@ function firstAudio(audio: Readable) {
 	});
 }
 
-// a method with a time limit is cut off when it runs over (an offline home
-// connection just hangs), and whatever it hands back afterwards is closed
 async function firstAudioWithin(
 	open: () => Promise<Readable>,
 	timeoutMs: number | undefined,
@@ -225,8 +215,6 @@ interface Method {
 	timeoutMs?: number;
 }
 
-// streaming through home takes well under a second. When it hasn't started by
-// this, home is offline and the song moves on to the next method
 const HOME_TIMEOUT_MS = 3000;
 
 export function youtubeOptions(cookies: string): YoutubeOptions {
@@ -237,11 +225,6 @@ export function youtubeOptions(cookies: string): YoutubeOptions {
 		console.warn("No YouTube cookies set, playing YouTube without cookies");
 	}
 
-	// fastest first. adaptive streams in-process (~0.1s to audio), but YouTube
-	// won't give the server's datacenter IP any audio that way, so it goes
-	// through the home proxy when there is one. yt-dlp works from the server
-	// with cookies but spawns python and sits out the video's pre-roll ad
-	// (5-10s), sabr is slowest
 	const cookie = hasCookies ? cookieHeader(cookies) : undefined;
 	const methods: Method[] = [
 		...(env.YOUTUBE_PROXY
@@ -316,8 +299,6 @@ export function youtubeOptions(cookies: string): YoutubeOptions {
 	};
 }
 
-// every shape of link people paste: watch, youtu.be, shorts, live, embed, and
-// the m. and music. hosts. null when it isn't a YouTube link
 function parseLink(query: string) {
 	let url: URL;
 	try {
@@ -348,9 +329,6 @@ interface LockupLike {
 	content_image?: { overlays?: { badges?: { text?: string }[] }[] };
 }
 
-// playlists now list their videos as LockupViews, which the extractor only
-// reads the title from. The channel is the first metadata line and the length
-// is a badge on the thumbnail
 function fillFromLockup(track: Track, node: unknown) {
 	const lockup = node as LockupLike;
 	if (lockup.type !== "LockupView") return;
@@ -401,8 +379,6 @@ interface OEmbed {
 	thumbnail_url?: string;
 }
 
-// when YouTube bot-checks our session the video details come back empty (the
-// "Played: []" lines). oEmbed is public and still has the title and channel
 async function loadVideo(videoId: string, ext: YoutubeExtractor) {
 	const track = await getVideo(videoId, ext).catch((error: unknown) => {
 		console.warn(`[music] Couldn't get details for ${videoId}:`, reason(error));
@@ -443,9 +419,6 @@ export class CustomYoutubeExtractor extends YoutubeExtractor {
 		const { videoId, listId } = link;
 
 		return runWithSearchContext(context, async () => {
-			// a mix (RD...) is a radio YouTube made from the video, not a playlist
-			// anyone picked, so a link into one plays just the video. A private
-			// or broken playlist falls back to the video too
 			if (listId && !(videoId && listId.startsWith("RD"))) {
 				try {
 					const playlist = await loadPlaylist(listId, this);
@@ -465,8 +438,6 @@ export class CustomYoutubeExtractor extends YoutubeExtractor {
 		});
 	}
 
-	// a Spotify song plays from YouTube. The first search hit is often the
-	// music video, so the video closest in title, artist and length wins
 	override async bridge(track: Track) {
 		const videos = await runWithSearchContext(
 			{ requestedBy: track.requestedBy, type: QueryType.YOUTUBE_SEARCH },

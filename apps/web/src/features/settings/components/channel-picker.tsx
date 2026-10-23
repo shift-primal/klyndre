@@ -26,7 +26,6 @@ export const ChannelPicker = ({
 	disabled,
 }: Props) => {
 	const anchor = useComboboxAnchor();
-	// ids of deleted channels stay visible so they can be removed
 	const selected = value.map(
 		(id) => channels.find((channel) => channel.id === id) ?? { id, name: id },
 	);

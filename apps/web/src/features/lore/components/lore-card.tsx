@@ -25,7 +25,6 @@ type Props = {
 };
 
 export const LoreCard = ({ entry, actions, readOnly }: Props) => {
-	// null until edited, so lore the bot rewrites shows up unless you're mid-edit
 	const [draft, setDraft] = useState<Fields | null>(null);
 	const value = draft ?? {
 		key: entry.key,

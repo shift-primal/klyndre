@@ -9,15 +9,7 @@ import {
 	type Track,
 } from "discord-player";
 
-// opening a song's audio can take ~10s when YouTube makes the server wait out
-// an ad, so the next song in the queue starts opening shortly before the
-// current one ends and is handed over when it comes up
-
-// enough to cover the slowest way of opening a song, and short enough that the
-// opened stream doesn't sit idle long enough for YouTube to drop it
 const LEAD_MS = 20_000;
-// a preloaded song that never came up (skipped past, moved, queue stopped) is
-// closed after this
 const KEEP_MS = 2 * 60_000;
 
 interface Preload {
@@ -28,13 +20,8 @@ interface Preload {
 
 const preloads = new Map<string, Preload>();
 const timers = new Map<string, NodeJS.Timeout>();
-// guilds whose current song is close enough to its end that the next one
-// should be open, so queue changes swap what's preloaded
 const due = new Set<string>();
 
-// opens the stream the way discord-player does when the song comes up: the
-// first extractor that takes the link streams it, a Spotify song by finding it
-// on YouTube
 async function open(player: Player, track: Track) {
 	const session = {
 		id: randomUUID(),
@@ -50,7 +37,6 @@ async function open(player: Player, track: Track) {
 	);
 	const streamable = result?.result;
 	if (streamable instanceof Readable) return streamable;
-	// a link or a stream with a format hint: leave it to discord-player
 	if (streamable && typeof streamable === "object") streamable.stream.destroy();
 	return null;
 }
@@ -97,8 +83,6 @@ export function registerPreload(player: Player) {
 		if (preload?.track !== track) return null;
 		preloads.delete(queue.guild.id);
 		clearTimeout(preload.expires);
-		// still opening if the song was skipped to: waiting for it beats
-		// starting over. null when preloading failed, so it's opened as usual
 		const stream = await preload.stream;
 		if (stream) console.log(`[music] using preloaded "${track.title}"`);
 		return stream;

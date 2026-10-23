@@ -1,6 +1,5 @@
 import type { Settings } from "@klyndre/config/schemas";
 
-// fixed when a queue is created, so panel changes apply from the next queue
 export const queueOptions = (settings: Settings<"music">) =>
 	({
 		disableVolume: true,

@@ -177,7 +177,6 @@ export const ModuleForm = ({
 							>
 								Discard
 							</Button>
-							{/* like each field's Reset, it only saves with Save changes */}
 							<Button
 								type="button"
 								variant="ghost"

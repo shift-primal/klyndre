@@ -18,7 +18,6 @@ export interface CommandContext {
 	args: string;
 	defer(): Promise<void>;
 	reply(content: string, options?: ReplyOptions): Promise<void>;
-	// for a command with nothing to say: clears a slash command's "thinking..."
 	dismiss(): Promise<void>;
 }
 
@@ -32,7 +31,6 @@ export interface Command {
 	name: string;
 	aliases?: string[];
 	description: string;
-	// prefix commands get the raw text after the name, slash options are joined with spaces
 	arguments?: CommandArgument[];
 	slashOnly?: boolean;
 	anyChannel?: boolean;

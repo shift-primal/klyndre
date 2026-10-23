@@ -4,7 +4,6 @@
 # second into every track. Move up once discord-player handles that
 FROM node:24-slim
 
-# ffmpeg for audio, python3 for yt-dlp; build tools as a fallback if @discordjs/opus has no prebuilt binary
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ffmpeg python3 make g++ ca-certificates \
     && rm -rf /var/lib/apt/lists/*

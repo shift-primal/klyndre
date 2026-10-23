@@ -17,7 +17,6 @@ export const meta = <T>(
 	...(widget && { widget }),
 });
 
-// Works fine as is, so the web app tucks it away below the settings worth tuning
 export const advanced = <T>(
 	value: T,
 	description: string,

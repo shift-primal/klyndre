@@ -35,7 +35,6 @@ async function asBot<T>(path: string) {
 
 const cache = new Map<string, { promise: Promise<unknown>; expires: number }>();
 
-// caches the in-flight promise, so concurrent callers share one Discord request
 function cached<T>(key: string, ttlMs: number, load: () => Promise<T>) {
 	const hit = cache.get(key);
 	if (hit && hit.expires > Date.now()) return hit.promise as Promise<T>;

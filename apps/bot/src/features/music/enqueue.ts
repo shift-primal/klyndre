@@ -18,9 +18,6 @@ type EnqueueMode = "end" | "next" | "now";
 
 const SPOTIFY_WEB_LINK = /^https?:\/\/open\.spotify\.com\//;
 
-// discord-player only knows track, album and playlist links. Anything else on
-// open.spotify.com (a typo'd path, a bad id, an artist or episode) falls back to
-// searching the URL as text and plays whatever that happens to match
 function isUnplayableSpotifyLink(query: string) {
 	const link = query.trim();
 	if (!SPOTIFY_WEB_LINK.test(link)) return false;
@@ -76,12 +73,8 @@ async function playAtEnd(ctx: CommandContext, voiceChannel: VoiceBasedChannel) {
 	const { playlist } = searchResult;
 	const position =
 		queue.tracks.toArray().findIndex((t) => t.id === track.id) + 1;
-	// not in the upcoming list means it's the one playing, or still loading
-	// as the first track (currentTrack is only set once its audio is ready)
 	const isPlayingNow = position === 0;
 
-	// a song that starts right away gets the now playing message, so there's
-	// nothing to add about it
 	const lines = [
 		playlist &&
 			`📃 **Added playlist** ${formatPlaylist(playlist)} · ${playlist.tracks.length} tracks`,

@@ -19,7 +19,6 @@ type Props = {
 };
 
 export const ProfileCard = ({ profile, actions, readOnly }: Props) => {
-	// null until edited, so notes the bot rewrites show up unless you're mid-edit
 	const [draft, setDraft] = useState<string | null>(null);
 	const notes = draft ?? profile.notes;
 	const dirty = draft !== null && draft.trim() !== profile.notes;
